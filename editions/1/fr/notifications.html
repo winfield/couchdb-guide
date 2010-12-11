@@ -2,13 +2,13 @@
 
 <meta charset="utf-8">
 
-<link rel="stylesheet" href="../style.css">
+<link rel="stylesheet" href="../../../style.css">
 
 <link rel="prev" href="clustering.html">
 
 <link rel="next" href="cookbook.html">
 
-<script src="../script.js"></script>
+<script src="../../../script.js"></script>
 
 <h2 id="notifications">Change Notifications</h2>
 
@@ -129,7 +129,7 @@ curl -X GET $HOST/db/_changes?since=1
 "last_seq":2}
 </pre>
 
-<p>While we’re discussing options, use <code>style=all_docs</code> to get more revision and conflict information in the <code>changes</code> array for each result row. If you want to specify the default explicitly, the value is <code>main_only</code>. If you only want a specific number of result rows, you can use the <code>limit=N</code> parameter, where <code>N</code> is the number of rows you like to retrieve.
+<p>While we’re discussing options, use <code>style=all_docs</code> to get more revision and conflict information in the <code>changes</code> array for each result row. If you want to specify the default explicitly, the value is <code>main_only</code>.
 
 <h3 id="long">Long Polling</h3>
 
@@ -157,7 +157,7 @@ curl -X GET $HOST/db/_changes?since=1
 
 <p>Long polling is great, but you still end up opening an HTTP request for each change notification. For web browsers, this is the only way to avoid the problems of regular polling. But web browsers are not the only client software that can be used to talk to CouchDB. If you are using Python, Ruby, Java, or any other language really, you have yet another option.
 
-<p>The <em>continuous changes API</em> allows you to receive change notifications as they come in using a single HTTP connection. You make a request to the continuous changes API and both you and CouchDB will hold the connection open “forever.” CouchDB will send you new lines for notifications when the occur and—as opposed to long polling—will keep the HTTP connection open, waiting to send the next notification.
+<p>The <em>continuous changes API</em> allows you to receive change notifications as they come in using a single HTTP connection. You make a request to the continuous changes API and both you and CouchDB will hold the connection open “forever.” CouchDB will send you newlines for notifications when the occur and—as opposed to long polling—will keep the HTTP connection open, waiting to send the next notification.
 
 <p>This is great for both infrequent and frequent notifications, and it has the same consequence as long polling: you’re going to have a lot of long-living HTTP connections. But again, CouchDB easily supports these.
 

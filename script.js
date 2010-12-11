@@ -4,7 +4,8 @@ var lang = "en";
 
 var languages = {
     "en": "English",
-    "de": "Deutsch"
+    "de": "Deutsch",
+    "fr": "Français"
 };
 
 var l10n = {
@@ -19,8 +20,8 @@ var l10n = {
             information.",
         "footer": "A <a href='http://oreilly.com/'>O’Reilly</a> book\
             about <a href='http://couchdb.apache.org/'>CouchDB</a> by\
-            <a href='http://jchrisa.net/'>J. Chris Anderson</a>,\
-            <a href='http://jan.prima.de/'>Jan Lehnardt</a> and\
+            <a href='http://www.couchone.com/'>J. Chris Anderson</a>,\
+            <a href='http://www.couchone.com/'>Jan Lehnardt</a> and\
             <a href='http://nslater.org/'>Noah Slater</a>.",
         "home": "Home",
         "nextPage": "Next Page",
@@ -48,7 +49,32 @@ var l10n = {
         "prevPage": "Vorherige Seite",
         "search": "Suchen",
         "title": "CouchDB <span>Die Definitive Referenz</span>",
-    }
+    },
+    "fr": {
+        "draftEdition": "Brouillon",
+        "draftNotice": "Cette publication est en cours d’élaboration. N’hésitez pas à\
+            <a href='http://github.com/oreilly/couchdb-guide/issues'>créer un\
+            ticket</a> pour toute correction ou suggestion qui vous vient à l’esprit.",
+        "edition": "Édition",
+        "editionNotice": "Cette publication est désuète. Veuillez vous référer à\
+            là <a href='%s'>dernière édition</a> pour avoir des informations\
+            plus à jour.",
+        "footer": "Un livre <a href='http://oreilly.com/'>O’Reilly</a>\
+            traitant de <a href='http://couchdb.apache.org/'>CouchDB</a> écrit par\
+            <a href='http://jchrisa.net/'>J. Chris Anderson</a>,\
+            <a href='http://jan.prima.de/'>Jan Lehnardt</a> et\
+            <a href='http://nslater.org/'>Noah Slater</a> ;\
+	    traduit de l’anglais par\
+	    <a href='https://wiki.fsfe.org/Fellows/jil.larner'>Jil Larner</a>\
+	    et <a href='http://blog.shimaore.net'>Stéphane Alnet</a>",
+        "home": "Accueil",
+        "nextPage": "Page suivante",
+        "prevPage": "Page précédente",
+        "search": "Rechercher",
+        "title": "CouchDB <span>Le guide authentique</span>",
+    },
+
+
 };
 
 var scripts = [
@@ -300,7 +326,14 @@ function track() {
     _gat._getTracker("UA-17867702-1")._trackPageview();
 }
 
+function access(evt){
+    prevNext=document.getElementsByTagName("link");
+    if(evt.keyCode==37){location=prevNext[1].href}
+    if(evt.keyCode==39){location=prevNext[2].href}
+}
+
 document.onready = function() {
+    document.documentElement.addEventListener("keydown", access, true)
     try {
         check_flag();
         raise_flag();
