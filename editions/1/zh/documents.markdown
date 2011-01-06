@@ -64,15 +64,217 @@ author和title域是在日志创建是设置的. title域是可改变的, 但是
 
 					"tags":["example","blog post","json"],
 
-Sofa’s tag system just stores them as an array on the document. This kind of denormalization is a particularly good fit for CouchDB.
-Sofa的标签系统只是把标签以一个数组的形式存储在文档里而已. 
+Sofa的标签系统只是把标签以一个数组的形式存储在文档里而已. 这样的denormalization处理特别适合于CouchDB.
 
-  "format":"markdown",
-  "body":"some markdown text",
-  "html":"<p>the html text</p>",
-Blog posts are composed in the Markdown HTML format to make them easy to author. The Markdown format as typed by the user is stored in the body field. Before the blog post is saved, Sofa converts it to HTML in the client’s browser. There is an interface for previewing the Markdown conversion, so you can be sure it will display as you like.
+					"format":"markdown",
+					"body":"some markdown text",
+					"html":"<p>the html text</p>",
 
-  "created_at":"2009/05/25 06:10:40 +0000"
-}
-The created_at field is used to order blog posts in the Atom feed and on the HTML index page.
+日志使用Markdown HTML格式来写, 这对于作者来说也很容易. 用户输入的Markdown格式内容存储在body域中. 在保存日志之前, Sofa会在用户浏览器中把它转化为HTML. 会有一个界面用来预览Markdown的转化, 所以你可以确定什么是你想显示的.
 
+					"created_at":"2009/05/25 06:10:40 +0000"
+				}
+
+create_at域用于在Atom feed和HTML首页里排序日志.
+
+### 编辑页面 ###
+
+为了能够得到日志, 我们首先要创建的第一个页面就是创建和编辑日志的界面.
+
+编辑比只是显示日志让访问者阅读要复杂的多, 但这也意味着在看完本章后, 你将会见识到大多数的技术, 这些技术我们也可能用于其他的章节. 
+
+首先要看的是曾经用于生成HTML页面的show函数. 如果你还不了解它, 请阅读第8章, Show函数来学习它的API. 我们会把它放在Sofa代码的上下文里来看, 这样你就能看到它们是如何组合在一起的了.
+
+				function(doc, req) {
+					// !json templates.edit
+					// !json blog
+					// !code vendor/couchapp/path.js
+					// !code vendor/couchapp/template.js
+
+Sofa的编辑页面show函数很直观. 在开始部分, 我们导入要用到的一些重要的模版和库. 重要的部分是那个!json宏, 它会从templates目录中导入edit.html模版. 这些宏会在Sofa被部署到CouchDB时由CouchApp运行. 要了解更多的关于宏的信息, 请看第13章, Show Documents in Custom Formats.
+
+				 // we only show html
+					return template(templates.edit, {
+						doc : doc,
+						docid : toJSON((doc && doc._id) || null),
+						blog : blog,
+						assets : assetPath(),
+						index : listPath('index','recent-posts',{descending:true,limit:8})
+					});
+				}
+
+函数剩下的部分就很简单了. 我们只是从文档中取回数据填入HTML模版中. 为了防止有文档还不存在, 我们会确保把docid设置为空. 这使得我们可以使用相同的模版来创建新日志和编辑已存在的日志.
+
+#### HTML模版 ####
+
+The only missing piece of this puzzle is the HTML that it takes to save a document like this.
+
+在你的浏览器中, 访问http://127.0.0.1:5984/blog/_desing/sofa/_show/edit, 并且用文本编辑器打开源文件templates/edit.html(或者在浏览器选择查看源代码). 一切都已经准备就绪; 所有我们需要做的事就是用JavaScript把它和CouchDB连接起来. 请看图2, "HTML listing for edit.html"
+
+和任何其他的web应用一样, HTML中最重要的部分就是用于接受用户编辑的表单. 编辑表单会捕获一些基本的数据: 日志标题, 日志内容(Markdown格式), 以及任何用户输入的标签.
+
+				<!-- form to create a Post -->
+				<form id="new-post" action="new.html" method="post">
+					<h1>Create a new post</h1>
+					<p><label>Title</label>
+						<input type="text" size="50" name="title"></p>
+					<p><label for="body">Body</label>
+						<textarea name="body" rows="28" cols="80">
+						</textarea></p>
+					<p><input id="preview" type="button" value="Preview"/>
+						<input type="submit" value="Save &rarr;"/></p>
+				</form>
+
+我们使用纯的HTML文档, 它包含有一个普通的HTML表单. 我们会使用JavaScript把用户输入转化为一个JSON文档然后把它保存到CouchDB中. 为了集中讨论CouchDB, 我们不会过多的讨论这里使用的JavaScript. 它是Sofa特有一些应用代码, CouchApp的JavaScript辅助方法以及用于操作界面元素的jQuery代码的组合. 基本的概念就是它会等待用户点击"保存", 然后在发送到CouchDB之前, 执行一些回调函数.
+
+Figure 2. HTML listing for edit.html
+
+### 保存一个文档 ###
+
+用于日志创建和编辑的JavaScript是围绕图2, "HTML listing for edit.html"中的HTML表单来的. CouchApp jQuery插件提供了一些抽象, 所以我们不需要自己去关心当用户点击提交时, 表单是如何被转化为JSON文档的. $.CouchApp同时还保证用户是已经登录的以及使得其信息在应用里可用. 请看图3, "edit.html的JavaScript回调".
+
+				$.CouchApp(function(app) {
+					app.loggedInNow(function(login) {
+
+我们要求CouchApp库做的第一件事情是保证用户已经登录了. 假设答案是肯定的, 我们会继续处理, 生成一个带有编辑器的页面. 这意味着, 我们绑定了一个JavaScript事件处理到表单, 并且指定了要在这个文档上执行的回调函数, 它们在页面载入和文档保存时都会被执行.
+
+Figure 3. JavaScript callbacks for edit.html
+
+						// w00t, we're logged in (according to the cookie)
+						$("#header").prepend('<span id="login">'+login+'</span>');
+						// setup CouchApp document/form system, adding app-specific callbacks
+						var B = new Blog(app);
+
+知道用户已经登录以后, 我们可以在页面的顶端显示他的名字. 变量B只是一个Sofa自己的博客生成代码的shortcut. 它包含了用于把日志内容的Markdown格式转化为HTML的方法, 以及一些其他的东西. 我们把这些函数放到了blog.js, 这样就能把它们从主代码里剥离出来了.
+
+						var postForm = app.docForm("form#new-post", {
+							id : <%= docid %>,
+							fields : ["title", "body", "tags"],
+							template : {
+								type : "post",
+								format : "markdown",
+								author : login
+							},
+
+CouchApp的app.docForm()辅助方法用于建立和维护一个CouchDB文档和HTML表单之间的对应关系. 让我们来看看前三个Sofa传入它的参数. 参数id告诉docForm()要把文档保存在哪里. 在创建新文档时, 这个域可以是空的. 我们在参数fields传入一个表单所包含元素的数组, 它们直接对应于CouchDB文档里的JSON域. 最后, 参数template传入的是一个JavaScript对象, 如果是创建一个新的文档, 那么它就是作为一个起始点. 在这个例子里, 我们要保证文档的type是"post", 并且默认的格式是Markdown. 我们还把作者设置为了当前登录用户的登录名.
+
+							onLoad : function(doc) {
+								if (doc._id) {
+									B.editing(doc._id);
+									$('h1').html('Editing <a href="../post/'+doc._id+'">'+doc._id+'</a>');
+									$('#preview').before('<input type="button" id="delete"
+											value="Delete Post"/> ');
+									$("#delete").click(function() {
+										postForm.deleteDoc({
+											success: function(resp) {
+												$("h1").text("Deleted "+resp.id);
+												$('form#new-post input').attr('disabled', true);
+											}
+										});
+										return false;
+									});
+								}
+								$('label[for=body]').append(' <em>with '+(doc.format||'html')+'</em>');
+
+onLoad回调函数会在文档来从CouchDB读取前执行. 它会在文档传到表单之前处理一番, 或者设置一些用户界面元素. 在这个例子里, 我们检查文档是否已经有了一个ID. 如果有, 那就意味着它已经被保存了, 所以我们创建一个按钮可以用来删除它, 并且在其之上设置了一个删除的回调函数. 看起来有很多代码, 但对于Ajax应用来说这算是很标准的了. 如果真要在这部分代码挑中毛病的话, 那就是用于创建删除按钮的逻辑可以移到blog.js文件里, 这样我们就可以把更多的用户界面细节移出主业务流程里了.
+
+							},
+							beforeSave : function(doc) {
+								doc.html = B.formatBody(doc.body, doc.format);
+								if (!doc.created_at) {
+									doc.created_at = new Date();
+								}
+								if (!doc.slug) {
+									doc.slug = app.slugifyString(doc.title);
+									doc._id = doc.slug;
+								}
+								if(doc.tags) {
+									doc.tags = doc.tags.split(",");
+									for(var idx in doc.tags) {
+										doc.tags[idx] = $.trim(doc.tags[idx]);
+									}
+								}
+							},
+
+docForm的beforeSave()回调函数会在用户点击提交按钮后执行. 在Sofa里, 它会用于设置日志的时间戳, 把日志标题转换为一个易于接受的文档ID(为了更加美观的URL), 以及把字符串形式的文档标签转换为一个数组. 它还会在浏览器里运行Markdown转HTML的代码, 这样当文档被保存后, 应用就可以直接使用HTML了.
+
+							success : function(resp) {
+								$("#saved").text("Saved _rev: "+resp.rev).fadeIn(500).fadeOut(3000);
+								B.editing(resp.id);
+							}
+						});
+
+我们在Sofa里最后使用的一个回调函数是success回调函数. 如果文档成功被保存, 它就会被执行. 在我们的例子里, 我们使用它来显示一条消息, 告诉用户她的日志保存成功了, 并且加入了一个到这个日志的链接. 这样在你第一次创建一个日志完成的时候, 你就能点击它来访问日志的永久链接了.
+
+这些就是docForm的回调函数.
+
+						$("#preview").click(function() {
+							var doc = postForm.localDoc();
+							var html = B.formatBody(doc.body, doc.format);
+							$('#show-preview').html(html);
+							// scroll down
+							$('body').scrollTo('#show-preview', {duration: 500});
+						});
+
+Sofa有一个函数用于在保存日志之前预览它们. 因为这并不影响文档是如何保存的, 所以用于监听这个事件的代码没有放到docForm()的回调函数里去.
+
+					}, function() {
+						app.go('<%= assets %>/account.html#'+document.location);
+					});
+				});
+
+最后的一点代码会在用户还没有登录时运行. 它所做的就是把用户跳转到登录页面, 这样他就可以登录, 然后编辑了.
+
+#### 验证 ####
+
+如果一切顺利, 那么当用户点击保存时, 前面的代码就会发送一个JSON文档到CouchDB. 这对于创建用户界面来说很好, 但它没有任何措施来保护数据库免于一些不期望的更新.这就是要用到验证函数的地方了. 如果有一个合适的验证函数, 一个determined的骇客也不能放入任何你不期望的文档到数据库里. 让我们来看看Sofa是如何做的. 要了解看更多关于验证函数的信息, 请浏览第7章, 验证函数.
+
+				function (newDoc, oldDoc, userCtx) {
+					// !code lib/validate.js
+
+这一行会从Sofa里导入一个库, 它可以让接下来的代码更加可读. 它只是把请求标记为禁止访问或者未授权的简单包装. 在这一部分里, 我们会集中讨论验证函数的业务逻辑. 注意, 除非你可以Sofa的validate.js, 不然你需要处理更多的Sofa这个库已经抽象出来的原始逻辑
+
+					unchanged("type");
+					unchanged("author");
+					unchanged("created_at");
+
+这几行的作用就和它们的字面意思一样. 如何文档的类型, 作者, 或者创建时间被改变, 那么它们会抛出一个错误, 告诉用户这个更新被禁止了. 请注意, 这几行并不管这些域有什么样的内容. 它们仅仅是保证任何更新都不能改变这些域的内容.
+
+					if (newDoc.created_at) dateFormat("created_at");
+
+dateFormat辅助方法保证了date(如果有这个域的话)是Sofa的视图期望的格式.
+
+					// docs with authors can only be saved by their author
+					// admin can author anything...
+					if (!isAdmin(userCtx) && newDoc.author && newDoc.author != userCtx.name) {
+							unauthorized("Only "+newDoc.author+" may edit this document.");
+					}
+
+如果保存文档的是管理员, 那文档编辑就会被处理. 不然, 就会检查日志作者和现在正在保存日志是不是同一个人. 这样做就保证了作者只能保证它们自己的日志.
+
+					// authors and admins can always delete
+					if (newDoc._deleted) return true;
+
+接下来的代码块会检查文档各位域的有效性. 然而如果是删除操作, 根据下面的定义就不会被允许了, 因为它的内容只有_deleted:true. 所以如果是删除操作, 就直接返回验证函数了.
+
+					if (newDoc.type == 'post') {
+						require("created_at", "author", "body", "html", "format", "title", "slug");
+						assert(newDoc.slug == newDoc._id, "Post slugs must be used as the _id.")
+					}
+				}
+
+最后, 我们验证日志文档本身的一些域. 在这里我们验证的是那些特定于日志文档的域. 因为我们已经验证了它们的存在, 所以我们可以在视图以及用户界面里放心的使用它们了.
+
+#### 保存你的第一个日志 ####
+
+让我们来看看这些代码是如何一起工作的! 在表单里填入一些数据, 然后点击"保存", 会看到一个成功的返回.
+
+图4, "JSON over HTTP to save the blog post"展示了JavaScript是如何使用HTTP, 把文档PUT到一个以数据库名加文档ID组成的URL上的. 它同时也展示了文档是如何以JSON字符串的形式在PUT请求的内容里发送出去的. 如何你是GET一个文档的URL, 你会看到相同的JSON数据, 但还会带有一个保存到CouchDB时产生的_rev域.
+
+Figure 4. JSON over HTTP to save the blog post
+
+要想看到你保存的文档的JSON版本, 可以到Futon里去浏览它. 访问http://127.0.0.1:5984/_utils/database.html?blog/_all_docs, 你应该会看到一个对应于你刚刚保存的文档的ID. 点击它看看Sofa发送给了CouchDB什么内容.
+
+### 收尾 ###
+
+我们已经讲完了如何设计应用的JSON格式, 如何使用验证函数来加强这些设计, 以及文档是如何被保存的一些基本. 在下一个章节中, 我们会展示如何从CouchDB读取文档, 并把它们在浏览器里展现出来.
