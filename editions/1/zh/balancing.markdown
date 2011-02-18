@@ -1,0 +1,28 @@
+## 负载均衡 ##
+
+Jill在早上4:30被手机吵醒. 她不停的一条一条的收到短信, 每分钟一条. 最终, Joe打电话来了. Joe非常生气, 但Jill不明白Joe到底是在说什么. Jill花了很长一段时间想来弄明白为什么Joe会在半夜打电话给好. 然后, 她记起来了: Joe正在她的服务器上运行一个销售运动套装的在线商店, 他这么生气是因为服务器挂了, 他在New Zealand的客户们因为不能访问网店非常恼火.
+
+这是一个很典型的场景, 你可能也见过很多类似的情况, 或是处于Jill, 或者处于Joe, 又或者两者皆有的位置. 如果你是Jill, 你想要睡觉; 如果你是Joe, 你想要自己的客户不管什么时候都能从你这买到东西.
+
+### 做一个备份 ###
+
+The problems persist: 计算机会出错, 各种各样的方式. 可能是硬件问题, 电源问题, 操作系统或者应用程序的bug, 等等. 只有CouchDB不存在任何bug. (好吧, 当然, 这不是真的. 所有的软件都会有bug, 除了Daniel J. Bernstein and Donald Knuth他们写的东西有可能除外.)
+
+不管是什么原因导致的, 你想要确保你提供的服务(在Jill和Joe的例子里是在线商店的数据库)可以从故障中快速的恢复. 实现快速恢复的过程是找出和去除单点故障的过程. 一个服务器的电源可能会故障. 当电源故障发生时, 为了保障服务器正常运行, 通常都会有至少两个的备用电源. 更进一步来说, 你可以把你的服务器正常运行需要的所有东西都备份一份(或者更多份), 但这样就会需要大量特殊的(也是昂贵的)硬件组件. 设置两个相似的服务器, 当一个故障时另一个可以接管服务则要便宜的多. 然而, 你必须要保证两个服务器都拥有相同的数据, 这样才能在用户不发觉的情况下切换它们.
+
+去除所有的单点故障会让你有一个有高可用性和容错能力的系统. 可容忍的顺序取决于你的预算. 如果你不能承受任何情况下用户丢失其购物车数据, 那么你就需要在至少两个不在同一地理位置上的服务器存储它.
+
+Amazon does this for the Amazon.com website. If one data center is the victim of an earthquake, a user will still be able to shop.
+
+It is likely, though, that Amazon’s problems are not your problems and that you will have a whole set of new problems when your data center goes away. But you still want to be able to live through a server failure.
+
+在我们深入讲解如何设置一个高可用性的CouchDB系统之前, 让们先来看看另一种情况. Joe在正常的工作时间打电话给Jill, 重复他的顾客们的抱怨说, 在线商店的页面"永远"都处于正在载入状态. Jill快速的查看了下服务器并告诉说这其实是一次幸运的问题, 这让Joe感到很迷惑. Jill解释说Joe的商店突然之间来了比平时多的多的用户. Joe说, "我在那个博客上做了一个很棒的评论. 他们可能是从那里过来的." 快速的查看引用网站后发现的确很多新客户是从同一个网站链接过来的. 那篇日志里已经出现了一些不愉快的客户表达了他们对于网站龟速的沮丧. Joe想要让他的客户有更愉快的体验并询问Jill应该怎么办. Jill建议他们增加第二台服务器, 用于负担目前正在运行服务器的一半负载, 这样就可以让所有的请求都可以在合理的时间内做出响应. Joe同意了, 然后Jill开始部署.
+
+The solution to the outlined problem looks a lot like the earlier one for providing a fault-tolerant setup: install a second server and synchronize all data. The difference is that with fault tolerance, the second server just sits there and waits for the first one to fail. In the server-overload case, a second server helps answer all incoming requests. This case is not fault-tolerant: if one server crashes, the other will get all the requests and will likely break down, or at least provide very slow service, either of which is not acceptable.
+上面提出的问题的解决方案和之前提供容错的看起来差不多: 安装第二个服务器并且同步所有的数据. 两者的不同之处在于, 容错的情况里, 第二个服务器只是在一旁静静的坐着然后等待第一个服务器出错. 在服务器过载这个例子里, 第二个服务器要去响应所有的请求. 这个例子里它并不是用来容错的: 如果一个服务器崩溃了, 另一个则会接管所有的请求并且也很有可能会崩溃掉, 或者这会导致两个都很慢的服务, 它们中的任何一个都是慢的不可接受的.
+
+记住, 虽然解决方案相似, 高可用性和容错不是同一回事. 我们在后面会很快讲到第二个场景, 但首先我们来看看如何设置一个容错的CouchDB系统.
+
+我们在前面几章其实已经说出了答案: 同步服务器的解决方案就是复制.
+
+
