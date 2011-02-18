@@ -1,0 +1,179 @@
+## 冲突管理 ##
+
+假设这样一个场景: 你正坐在一个咖啡馆里写自己的书. 这时候J. Chris走过来告诉你他有了个新手机. 新手机绑定了一个新的手机号码, 所以你叫J. Chris把号码报一遍以便自己可以在笔记本的通迅录应用里记下新号码.
+
+幸运的是, 你的通迅录是构建在CouchDB上的, 所以当你回家后要让家里的电脑和笔记本同步只需要用CouchDB的复制就可以了. 很方便, 是吧? 还有更棒的呢, CouchDB拥有维护连续复制的机制, 所以你可以让一堆电脑都和同一个数据源进行同步, 只要有网络连接就成了.
+
+让我们再把场景变换一下. 假设J. Chris并不只是在咖啡馆里遇见你告诉了你他的新手机号码, 还给你发个了电子邮件. 而此时, 你并没有在使用WiFi, 因为你想要集中精力用于工作, 所以在回家以前你都没有阅读邮件. 这是漫长的一天, 回到家后你忘记自己已经在笔记本的通迅录上改了他的号码. 然后当你在家里阅读邮件的时候, 只是简单的把号码复制粘贴到家里的电脑的通迅录里了. 现在, 麻烦出现了, 你白天在笔记本的通迅录里输入的号码输错了...
+
+现在一个文档在每个数据库里有了不一样的信息. 这种情况被称为冲突. 冲突会出现在分布式系统里. 它们是数据的自然状态. 那么CouchDB的复制系统是怎么处理冲突的呢?
+
+当你复制两个带有冲突的数据库里, CouchDB会检查到冲突并且把影响到的文件标记一个特殊的属性: "_conflicts": true. 接下来, CouchDB会决定哪一个变更会被做为最新的版本(还记得吗, CouchDB中的文档都有版本号). 被选为最新版本的那个版本就是胜出的版本. 落先的版本则被保存为先前的版本.
+
+CouchDB不会试图去合并冲突的版本. 应用程序要自己决定如何进行合并. 如何选择胜出版本没有一个确切的答案. 在手机号码这个例子里, 计算机没有办法决定到底哪一个是正确的版本. 这种情况并不仅存在于CouchDB里; 没有软件可以做到这个(手机通迅录同步软件是不是曾经问过你要从哪一个源来同步数据?)
+
+复制系统保证了冲突会被检测到, 并且每个CouchDB实例--独立于所有其他的实例--都会做出相同的胜出与落选版本的选择.  There is no group decision made; instead, a deterministic algorithm determines the order of the conflicting revision. 复制完毕后, 所有参与的实例都会拥有相同的数据. 数据库被认为是处于一个连续的状态. 如果你查找一个文档的状态, 不管你查找的是哪一个实例都会得到相同的回应.
+
+不管CouchDB是不是找出了应用程序想要的版本, 你都必须去解决冲突, 就像在类似Subvesion这样的版本控制里需要解决冲突一样. 只需要创建一个你认为可以的最新版本就行, 可以选择最近的版本, 或者较老的那个, 又或者两者皆有(通过合并它们), 然后把这个版本作为最新版本保存即可. 这样就解决了. 再次复制, 解决冲突后的文档就会被发送到所有的CouchDB实例上去了. 在一个节点解决冲突后可能会导致其他的冲突, 所有的这些冲突都需要去处理, 但是最终, 你会得到一个在所有节点上都没冲突的数据库.
+
+### The Split Brain ###
+
+在我们帮助BBC构建一个解决文案时--现在它已经用于生产环境了--有一个很有趣的冲突场景. 基本上是这样的: 要保证公司的网站24/7在线, 即便是一个数据中心消失了, 公司拥有多个数据中心用来备份网站. 数据中心的"消失"不大可能会发生, 但是它可能会是数据中心的网站中断了, 这样虽然数据中心仍然在线并且运行良好但是外界任何人都无法访问.
+
+"split brain"场景是指两个(为了简单, 我们就只说两个)数据中心在运行中并且和终端用户的连接良好, 但是两个数据中心之间的网络连接--这通常和终端用户到数据中心之间的网络连接不是同一个线路--中断了.
+
+内部的数据中心网络连接用于保持两个数据中心之间的同步, 这样当其中一个出问题里, 另一个仍能保证网站可以正常运行. 如果这个连接中断了, 就会出现一个系统的两个部分独立的运行了--the split brain
+
+所有的终端用户都可以得到他们的数据, 在这一点上, split brain问题没什么好可怕的. 但当网络连接恢复, 两个数据中心连接并开始同步时, 解决split brain问题就变得困难了. 随意的冲突解决方法, 比如CouchDB默认的冲突解决方法, 可能会在用户端导致并不期望的效果. 数据可能会被恢复到一个先前的状态, 给用户一个数据变更不能被可靠存储的印象, 虽然实际上数据已经被存储了.
+
+### 冲突解决的例子 ###
+
+让我们通过一个例子来看如何合并冲突以及 how to solve them in super slow motion. 图1, "冲突解决的例子: 第一步"展示了基本的情况: 我们有两个CouchDB数据库, 我们要从数据库A复制到数据库B. 为了让例子简单些, 我们假设触发的复制并不是连续复制, 并且我们不会从数据库B复制回A. 所有其他的复制场景最终都能减化为这种情况, 所以这个例子可以解释所有我们需要知道的.
+
+Figure 1. Conflict management by example: step 1
+
+我们从在数据库A里创建文档开始(图2, "冲突解决的例子: 第二步"). 注意我们很聪明的使用了一个图片来代表一个文档的特定版本. 因为我们没有使用连续复制, 所以数据库B现在还不知道这一新文档.
+
+
+Figure 2. Conflict management by example: step 2
+
+现在我们触发复制, 将数据库A作为源, 数据库B作为目标 (图3, "冲突管理的例子: 第三步"). 我们的文档被复制到了数据库B. 更准确的说是, 文档的最新版本被复制了.
+
+Figure 3. Conflict management by example: step 3
+
+现在我们来到数据库B, 然后更新这个文档 (图4, "冲突管理的例子: 第四步"). 我们改变了文档的一些值, CouchDB为我们生成了一个新的版本. 注意这个新版本用了一个新的图案来表示. 节点A对些仍然毫不知情.
+
+Figure 4. Conflict management by example: step 4
+
+这时候我们又在数据库A中改变了这个文档的一些值 (图5, "冲突管理的例子: 第五步"). 看到有两个不同的图案了吗? 重点需要注意的是它们仍然是同一个文档. 它们只是两个数据库中同一文档的两个不同版本.
+
+
+Figure 5. Conflict management by example: step 5
+
+然后, 我们再次从数据库A触发复制到数据库B (图6, "冲突管理的例子: 第六步). 顺便说一下, 两个数据库在同一个CouchDB服务器上和在网络上的不同服务器上没有什么不同.
+
+Figure 6. Conflict management by example: step 6
+
+当复制里, CouchDB会检测到有一个文档的两个不同的版本, 然后它会产生一个冲突 (图7, "冲突管理的例子: 第七步"). 一个文档冲突意味着有着两个这一文档的最新版本存在.
+
+最后, 通过解决冲突, 我们告诉CouchDB哪一个是我们想要的最新版本 (图8, "冲突管理的例子: 第八步"). 现在两个数据库都拥有了相同的数据.
+
+Figure 8. Conflict management by example: step 8
+
+其他可能的结果包括选择另一个版本并且把结果复制回数据库A, 或者在数据库B中创建另外一个版本, 这一版本包含了两个版本的内容(合并后), 然后再复制回数据库A.
+
+### Working with Conflicts ###
+
+我们已经通过直观的图片了解了复制的过程, 让我们再动手来试试在这个以及其他场景下, API是怎么调用和响应的. 我们会继续使用在第四章, 核心API中提到的curl命令行来做原始的API请求.
+
+首先, 我们创建两个用于复制的数据库. 它们运行在同一个CouchDB实例上, 但它们也可以运行在不同的远程的实例上--CouchDB不关心这些. 为了省下些打字的力气, 我们把CouchDB的基本URL放到了一个shell变量里. 然后我们创建两个数据库, db和db-replica:
+
+				HOST="http://127.0.0.1:5984"
+
+				> curl -X PUT $HOST/db
+				{"ok":true}
+
+				> curl -X PUT $HOST/db-replica
+				{"ok":true}
+
+接下来一步, 我们在db中创建一个简单的文档{"count":1}, 然后触发到db-replica的复制:
+
+				> curl -X PUT $HOST/db/foo -d '{"count":1}'
+				{"ok":true,"id":"foo","rev":"1-74620ecf527d29daaab9c2b465fbce66"}
+
+				> curl -X POST $HOST/_replicate -d '{"source":"db","target":"http://127.0.0.1:5984/db-replica"}'
+				{"ok":true,...,"docs_written":1,"doc_write_failures":0}]}
+
+我们跳过了一点复制会话的输出 (详细内容请查看第16章, 复制). 如果你看到的"doc_written":1和"doc_write_failures":0, 那么我们的文档就已经被复制到db-replica了. 现在我们在db-replica中更新文档为{"count":2}. 注意, 现在我们需要带上正确的_rev才行. 
+
+				> curl -X PUT $HOST/db-replica/foo -d '{"count":2,"_rev":"1-74620ecf527d29daaab9c2b465fbce66"}'
+				{"ok":true,"id":"foo","rev":"2-de0ea16f8621cbac506d23a0fbbde08a"}
+
+再接下来, 我们创建一个冲突! 在db中把我们的文档更新为{"count":3}. 现在在逻辑上我们文档已经处于冲突状态了, 但是CouchDB在再次进行复制之前对此并不知情:
+
+				> curl -X PUT $HOST/db/foo -d '{"count":3,"_rev":"1-74620ecf527d29daaab9c2b465fbce66"}'
+				{"ok":true,"id":"foo","rev":"2-7c971bb974251ae8541b8fe045964219"}
+
+				> curl -X POST $HOST/_replicate -d '{"source":"db","target":"http://127.0.0.1:5984/db-replica"}'
+				{"ok":true,..."docs_written":1,"doc_write_failures":0}]}
+
+为了看到冲突, 我们在db-replica中创建一个简单的视图. map函数是这个样子的:
+
+				function(doc) {
+					if(doc._conflicts) {
+						emit(doc._conflicts, null);
+					}
+				}
+
+当我们查询这个视图时, 我们会得到这样的结果:
+
+				{"total_rows":1,"offset":0,"rows":[
+				{"id":"foo","key":["2-7c971bb974251ae8541b8fe045964219"],"value":null}
+				]}
+
+这里的key对应于db-replica中文档的doc._conflicts属性. 它是一个数组, 列出了所有的冲突版本. 我们看到db里的{"count":3}这个版本处于冲突状态. CouchDB自动选择胜出版本的方法选择了我们第一次做出的变更({"count":2}). 为了验证这一点, 我们只需要在db-replica中请求这一文档:
+
+				> curl -X GET $HOST/db-replica/foo
+				{"_id":"foo","_rev":"2-de0ea16f8621cbac506d23a0fbbde08a","count":2}
+
+为了解决冲突, 我们需要决定保留哪一个版本.
+
+How Does CouchDB Decide Which Revision to Use?
+
+CouchDB guarantees that each instance that sees the same conflict comes up with the same winning and losing revisions. It does so by running a deterministic algorithm to pick the winner. The application should not rely on the details of this algorithm and must always resolve conflicts. We’ll tell you how it works anyway.
+
+Each revision includes a list of previous revisions. The revision with the longest revision history list becomes the winning revision. If they are the same, the _rev values are compared in ASCII sort order, and the highest wins. So, in our example, 2-de0ea16f8621cbac506d23a0fbbde08a beats 2-7c971bb974251ae8541b8fe045964219.
+
+One advantage of this algorithm is that CouchDB nodes do not have to talk to each other to agree on winning revisions. We already learned that the network is prone to errors and avoiding it for conflict resolution makes CouchDB very robust.
+
+假设我们想要保留最大值. 这意味着我们并不认同CouchDB的自动选择. 为了做到这一点, 我们首先要用我们想要的值在目标文档上进行重写然后仅仅只要把我们不想要的版本删除就行了.
+
+				> curl -X DELETE $HOST/db-replica/foo?rev=2-de0ea16f8621cbac506d23a0fbbde08a
+				{"ok":true,"id":"foo","rev":"3-bfe83a296b0445c4d526ef35ef62ac14"}
+
+				> curl -X PUT $HOST/db-replica/foo -d '{"count":3,"_rev":"2-7c971bb974251ae8541b8fe045964219"}'
+				{"ok":true,"id":"foo","rev":"3-5d0319b075a21b095719bc561def7122"}
+
+CouchDB又创建了另外一个对应于我们决定的版本. 注意这次版本仍然是3-, 并没有增加. 我们并没有增加一个新的版本; 我们只是删除了一个冲突的版本. 为了确认一切正常, 我们来看看变更是否已经写入文档.
+
+				> curl -X GET $HOST/db-replica/foo
+				{"_id":"foo","_rev":"3-5d0319b075a21b095719bc561def7122","count":3}
+
+另外, 我们再验证下文档已经不再处于冲突状态. 通过再次查询冲突视图, 我们可以看到已经没有冲突存在了:
+
+				{"total_rows":0,"offset":0,"rows":[
+				]}
+
+最后, 我们只要简单的把源和目标交换下, 从db-replica复制回db就行了:
+
+				> curl -X POST $HOST/_replicate -d '{"target":"db","source":"http://127.0.0.1:5984/db-replica"}'
+
+我们可以看到在db里也是这个版本了:
+
+				> curl -X GET $HOST/db/foo
+				{"_id":"foo","_rev":"3-5d0319b075a21b095719bc561def7122","count":3}
+
+好, 搞定了.
+
+### Deterministic Revision IDs ###
+
+让我们来看看这个版本号: 5d0319b075a21b095719bc561def7122. 部分的格式可能看上去很熟悉. 首先是一个整数跟着一个横杠(3-). 整数在每次文档变更时都会递增. 多个实例中对于同一个文档的变更在每个实例里会创建自己独立的递增. 在复制时, CouchDB通过查看版本号的第二个部分了解到存在不同的版本(如同我们前面那个例子里出现的那样).
+
+The second part is an md5-hash over a set of document properties: the JSON body, the attachments, and the _deleted flag. This allows CouchDB to save on replication time in case you make the same change to the same document on two instances. Earlier versions (0.9 and back) used random integers to specify revisions, and making the same change on two instances would result in two different revision IDs, creating a conflict where it was not really necessary. CouchDB 0.10 and above uses deterministic revision IDs using the md5 hash.
+第二个部分是一个通过一系列文档属性: JSON体, 附件, 以及_deleted标志, 而得到的md5哈希值. 这就是允许当在两个实例里对同一个文档做出相同改变后, CouchDB可以在复制时直接进行保存. 早先的版本(0.9以及更早的)使用随机的整数来指定版本号, 会造成在两个实例里对同一文档进行相同改变后会产生不同的版本号, 产生一个本来并不需要的冲突. CouchDB 0.10及以上使用了md5哈希决定的版本号.
+
+For example, let’s create two documents, a and b, with the same contents:
+举个例子, 我们来创建两个文档, a和b, 它们的内容相同:
+
+				> curl -X PUT $HOST/db/a -d '{"a":1}'
+				{"ok":true,"id":"a","rev":"1-23202479633c2b380f79507a776743d5"}
+
+				> curl -X PUT $HOST/db/b -d '{"a":1}'
+				{"ok":true,"id":"b","rev":"1-23202479633c2b380f79507a776743d5"}
+
+两者的版本号是相同的, 这就是CouchDB使用deteministic算法的结果.
+
+### 收尾 ###
+
+对于冲突管理系统的讲解到此结束. 现在你应该可以用正确的方式来创建带有冲突的分布式架构了.
+
