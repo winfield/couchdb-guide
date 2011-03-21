@@ -1,4 +1,4 @@
-## View Cookbook for SQL Jockeys ##
+## 在视图中实现类似的SQL操作 ##
 
 本章是一个关于一些常见的SQL查询在CouchDB要如何得到相同的结果的集合. 这里关键要记住的是, CouchDB和SQL数据库的工作方式完全不同, 并且SQL世界的最佳实践并不能很好的或者说完全不能原原本本的翻译到CouchDB里. 本章节"cookbook"假设你对CouchDB的基础熟悉, 像创建更新数据库及文档等.
 
