@@ -1,45 +1,44 @@
 ## 验证函数 ##
 
-在这一章节中, 我们会来仔细的了解Sofa的一个单一组件,验证函数. Sofa有你想要用在你自己的应用里的基本的验证功能. 因此, 理解它的验证函数会给你将来在其他应用里使用打下良好的基础.
+在这一章节中, 我们会仔细讲解Sofa的一个独立组件, 验证函数. Sofa拥有基本的验证功能. 因此, 理解它的验证函数能为将来在其他应用里使用打下良好的基础.
 
-CouchDB使用validate_doc_update函数来阻止不正确的未授权的文档更新. 我们在示例应用里使用它来保证, 博客里的日志只能由登录用户来管理. CouchDB的验证函数--就像map和reduce函数一样--不会有任何的副作用; 它们在每一次请求里独立运行. 它们不仅能阻止终端用户的文档保存, 还可以阻止从其他的CouchDB数据库备份过来的文档更新.
+CouchDB使用validate_doc_update函数来阻止无效的未授权的文档更新. 我们在示例应用里使用它来保证, 博客里的日志只能由登录用户来管理. CouchDB的验证函数--就像map和reduce函数一样--不会有任何的副作用; 它们在每一次请求里独立运行. 它们不仅能阻止终端用户的文档保存, 还可以阻止从其他的CouchDB数据库复制过来的文档更新.
 
 ### 文档验证函数 ###
 
-为了保证用户只保存有相应域存在的文档, 我们在_design/文档里加入另一个成员:validate_doc_update函数, 来验证用户的输入. 这是你第一次看到CouchDB内部是如何工作的. CouchDB把函数和文档发送给一个JavaScript解析器. 这样的机制让我们可以用JavaScript来写我们的验证函数. validate_doc_update函数会在每次你创建或者更新一个文档时执行. 如果验证函数抛出了一个异常, 更新就会被拒绝; 如果没有异常, 则更新被接受. 
+为了保证用户只保存有相应域存在的文档, 我们在_design/文档里加入另一个成员: validate_doc_update函数, 来验证用户的输入. 这是你第一次看到CouchDB内部是如何工作的. CouchDB把函数和文档发送给一个JavaScript解析器. 这样的机制让我们可以用JavaScript来写我们的验证函数. validate_doc_update函数会在每次创建或者更新一个文档时执行. 如果验证函数抛出了一个异常, 更新就会被拒绝; 如果没有异常, 则更新被接受. 
 
-文档验证是可选的. 如果你没有创建一个验证函数, 就不会有检查, 包含任何内容任何结构的文档都可以被写入CouchDB里. 如果你有多个设计文档, 而每一个都有一个validate_doc_update函数, 则每一个写请求进来时, 所有的这些验证函数都会被执行. 只有所有的验证函数都通过了, 这次写请求才能成功. 验证函数的执行顺序是未定义的. 每个验证函数都是各自执行. 见图1, “The JavaScript document validation function”.
+文档验证是可选的. 如果你没有创建一个验证函数, 就不会有检查, 包含任何内容任何结构的文档都可以被写入CouchDB里. 如果你有多个设计文档, 而每一个都有一个validate_doc_update函数, 则每一个写请求进来时, 所有的这些验证函数都会被执行. 只有所有的验证函数都通过了, 这次写请求才能成功. 验证函数的执行顺序是未定义的. 每个验证函数都是各自执行. 见图1, "使用JavaScript写的文档验证函数".
 
-![“The JavaScript document validation function”.](validation/01.png)
+![使用JavaScript写的文档验证函数](validation/01.png)
 
+图1. 使用JavaScript写的文档验证函数
 
-Figure 1. The JavaScript document validation function
-
-验证函数通过抛出异常来取消文档的更新. 抛出一个这样的异常, 在再次提交请求之前, 用户就会被要求认证:
+验证函数通过抛出异常来取消文档的更新. 在再次提交请求之前, 可以抛出一个这样的异常, 要求用户先进行认证. 比如像如下代码所示:
 
 				throw({unauthorized : message});
 
-如果你要阻止一个已授权的用户存储不正确的数据, 用这个:
+如果你要阻止一个已授权的用户存储无效的数据, 可以使用如下的代码:
 
 				throw({forbidden : message});
 
-这个函数在一个日志没有包含必须的域的时候会抛出一个forbidden错误. 在例子里, 我们会使用validate()辅助方法来整理JavaScript代码. 我们还会可以简单的JavaScript条件判断来保证doc._id和doc.slug相同, 以便于生成更好看的URL.
+这个函数在一个日志没有包含必须域的时候会抛出一个forbidden错误. 在我们的例子里, 使用了validate()辅助方法来整理JavaScript代码. 我们还会使用简单的JavaScript条件判断来保证doc._id和doc.slug相同, 以便于生成更好看的URL.
 
-如果没有异常抛出, CouchDB会认为进入的文档是正确可用的, 并将写入数据库. 通过使用JavaScript来验证JSON文档, 我们可以处理包含任何结构的文档. 你可以组织任何结构的文档, 也能相当灵活和强大的来验证这些文档. 验证还可以做为文档的一种有价值的形式.
+如果没有异常抛出, CouchDB会认为进入的文档是有效的, 并将写入数据库. 通过使用JavaScript来验证JSON文档, 我们可以处理包含任何结构的文档. 你可以组织任何结构的文档, 同时保持相当灵活和强大的验证能力. 验证还可以做为文档的一种有价值的形式.
 
 ### 验证的上下文 ###
 
-在我们深入验证函数的细节之前, 让我们来说说它们的上下文和它们可能有的效果.
+在深入验证函数的细节之前, 让我们来说说它们的上下文和它们可能有的效果.
 
-验证函数被放在设计文档的validate_doc_update域里. 每一个设计文档只有一个验证函数, 但一个数据库里可以有多个设计文档. 在一个文档被保存之前, 它必须通过数据库里所有设计文档的验证函数(多个验证函数的执行顺序是没有被定义的).在这一章里, 我们假设你的数据库里只有一个验证函数. 
+验证函数被放在设计文档的validate_doc_update域里. 每一个设计文档只有一个验证函数, 但一个数据库里可以有多个设计文档. 在一个文档被保存之前, 它必须通过数据库里所有设计文档的验证函数(多个验证函数的执行顺序是没有被定义的). 在这一章里, 我们假设你的数据库里只有一个验证函数. 
 
-### Writing One ###
+### 来写一个验证函数 ###
 
 函数的声明很简单. 它接受3个参数: 要更新的文档, 目前磁盘上存在的文档, 和一个对应用户初始请求的对象.
 
 				function(newDoc, oldDoc, userCtx) {}
 
-上面的可能是最简单的一个验证函数. 如果我们把这个部署上去了, 那它就会允许所有的更新, 不管文档的内容, 不管用户的角色. 相反的, 下面这个会不让任何人做任何事:
+上面可能是最简单的一个验证函数. 如果我们把这个部署上去了, 那它就会允许所有的更新, 不管文档的内容, 不管用户的角色. 相反的, 下面这个则不让任何人做任何事:
 
 				function(newDoc, oldDoc, userCtx) {
 					throw({forbidden : 'no way'});
@@ -49,82 +48,82 @@ Figure 1. The JavaScript document validation function
 
 我们可以从这些例子里看出这些函数的返回值被忽略了. 验证函数通过抛出异常来阻止文档更新. 当验证函数没有抛出异常通过了, 更新才会被允许并加以处理.
 
-#### Type ####
+#### 类型 ####
 
 验证函数最基本的用处就是保证文档的合理格式化, 来适合应用的需求. 如果没有验证, 你需要在你的MapReduce或者用户界面代码里检查文档的所有域来保证它们都存在. 有了验证, 你就知道所有已保存的文档都是满足自己要求的.
 
 在大多数编程语言, 框架, 和数据库里, 一个惯用的模式是用类型来区分数据的不同子集. 比如, 在Sofa里, 我们也有一些类型, 一般会是post和comment.
 
-CouchDB本身是没有类型这一概念的, 但在实际应用代码里, 包括MapReduce视图, 显示逻辑, 用户界面代码, 有一种简便的方法可以使用. 就是使用一个叫"type"的域来存储文档的类型, 但很多其他的框架会使用其他的域, CouchDB本身并不关心你到底用的什么.(比如, CouchRest Ruby库使用的是couchrest-type).
+CouchDB本身是没有类型这一概念的, 但在实际应用代码里, 包括MapReduce视图, 显示逻辑, 用户界面代码, 有一种简便的方法可以使用. 那就是使用一个叫"type"的域来存储文档的类型, 但很多其他的框架会使用其他的域, CouchDB本身并不关心你到底用的什么.(比如, CouchRest Ruby库使用的是couchrest-type).
 
-这是一个只会跑在类型为post的文档上的验证函数:
+这是一个只会运行在类型为post的文档上的验证函数:
 
-function(newDoc, oldDoc, userCtx) {
-  if (newDoc.type == "post") {
-    // validation logic goes here
-  }
-}
+				function(newDoc, oldDoc, userCtx) {
+					if (newDoc.type == "post") {
+						// validation logic goes here
+					}
+				}
 
 因为CouchDB在一个设计文档里只能保存一个验证函数, 所以你最终会在一个验证函数里验证多个类型, 最终的结构会变成这个样子:
 
-function(newDoc, oldDoc, userCtx) {
-  if (newDoc.type == "post") {
-    // validation logic for posts
-  }
-  if (newDoc.type == "comment") {
-    // validation logic for comments
-  }
-  if (newDoc.type == "unicorn") {
-    // validation logic for unicorns
-  }
-}
+				function(newDoc, oldDoc, userCtx) {
+					if (newDoc.type == "post") {
+						// validation logic for posts
+					}
+					if (newDoc.type == "comment") {
+						// validation logic for comments
+					}
+					if (newDoc.type == "unicorn") {
+						// validation logic for unicorns
+					}
+				}
 
-再次重申type完全是一个可有可无的域. 我们把它拿来作为使用CouchDB验证的一种有用的技术, 但完全有其他的方法来写验证函数. 下面是一个使用duck typing来代替明确的"type"域的例子:
+再次重申type完全是一个可有可无的域. 我们只是使用它来帮助我们进行验证, 但完全有其他的方法来写验证函数. 下面是一个使用鸭子类型(duck typing)来代替明确的类型域的例子:
 
-function(newDoc, oldDoc, userCtx) {
-  if (newDoc.title && newDoc.body) {
-    // validate that the document has an author
-  }
-}
+				function(newDoc, oldDoc, userCtx) {
+					if (newDoc.title && newDoc.body) {
+						// validate that the document has an author
+					}
+				}
 
-这个验证函数忽略了type属性, 而是基于任何一个拥有标题和内容的文档肯定会有一个作者这一事实, 这使得验证变得更为简单. 但对于其他的验证来说, 要记录哪些域依赖于另外哪些域会变得很痛苦. 
+这个验证函数忽略了类型属性, 而是基于任何一个拥有标题和内容的文档肯定会有一个作者这一事实, 这使得验证变得更为简单. 但对于其他的验证来说, 要记录哪些域依赖于另外哪些域会变得很痛苦. 
 
-在实际中, 许多应用会混合使用标注类型的未标注类型的验证. 比如, Sofa使用文档类型来记录一个文档哪些域是必须要的, 但同时也使用duck typing来验证特定域的结构. 我们并不关心我们在验证的到底是什么类型的文档. 如果文档有一个created_at域, 我们保证这个域是一个正确格式的时间戳. 类似的, 当我们验证一个文档的作者时, 我们并不关心文档是什么类型; 我们只是保证作者这个域符合想要保存这一文档的用户的要求. 
+在实际中, 许多应用会混合使用标注类型的未标注类型的验证. 比如, Sofa使用文档类型来记录一个文档哪些域是必须要的, 但同时也使用鸭子类型(duck typing)来验证特定域的结构. 我们并不关心在验证的到底是什么类型的文档. 如果文档有一个created_at域, 那就保证这个域是一个正确格式的时间戳. 类似的, 当验证一个文档的作者时, 我们并不关心文档是什么类型; 只是保证作者这个域符合想要保存这一文档的用户的要求. 
 
-#### Required Fields ####
+#### 必要域 ####
 
-最基本的一种验证就是保证文档有一个特定的域. 合理的使用必要域验证能让写MapReduce视图变得简单的多, 因为你可以不用在使用域之前去把它们都测试一遍----你已经知道所有的文档都是正确的格式化的.
+最基本的验证就是保证文档有某些特定的域. 合理的使用必要域验证能让写MapReduce视图变得简单的多, 因为你可以不用在使用域之前去把它们都测试一遍--你已经知道所有的文档都是正确的格式化的了.
 
-必要域验证也让显示逻辑变得更加简单. 像undefined这种让人显得不专业的词不会再出现你的应用里. 如果你知道明确的知道所有的文档会有这一个域, 你就可以避免要根据文档的结构, 使用冗长的条件语句来显示界面.
+必要域验证也让展示逻辑变得更加简单. 像undefined这种让人显得不专业的词不会再出现你的应用里. 如果明确的知道所有的文档会有这一个域, 就可以避免要根据文档的结构, 使用冗长的条件语句来展示界面.
 
 Sofa对于日志和评论有着不同的必要域. 下面是Sofa验证函数的一部分:
 
-function(newDoc, oldDoc, userCtx) {
-  function require(field, message) {
-    message = message || "Document must have a " + field;
-    if (!newDoc[field]) throw({forbidden : message});
-  };
+				function(newDoc, oldDoc, userCtx) {
+					function require(field, message) {
+						message = message || "Document must have a " + field;
+						if (!newDoc[field]) throw({forbidden : message});
+					};
 
-  if (newDoc.type == "post") {
-    require("title");
-    require("created_at");
-    require("body");
-    require("author");
-  }
-  if (newDoc.type == "comment") {
-    require("name");
-    require("created_at");
-    require("comment", "You may not leave an empty comment");
-  }
-}
+					if (newDoc.type == "post") {
+						require("title");
+						require("created_at");
+						require("body");
+						require("author");
+					}
+					if (newDoc.type == "comment") {
+						require("name");
+						require("created_at");
+						require("comment", "You may not leave an empty comment");
+					}
+				}
 
 这是我们第一次看到真正的验证逻辑. 你会发现实际的异常抛出代码被封装在一个辅助函数里了. 像require这样的辅助函数会让你的代理变得干净和可读. require函数很简单. 它接受一个域的名字和一个可选的消息作为参数, 并且它保证这个域不是不存在的或是空的.
 
-一旦我们声明了我们的验证函数, 我们可以简单的在检查特定类型时使用它. 日志要求一个标题, 一个时间戳, 一个内容体, 和一个作者. 评论要求一个名字, 一个时间戳, 和评论内容本身. 如果我们想要求每个文档都包含一个created_at域, 我们可以把这个域的声明拿到任何条件逻辑外面.
+一旦声明了验证函数, 我们可以简单的在检查特定类型时使用它. 日志要求一个标题, 一个时间戳, 一个内容体, 和一个作者. 评论要求一个名字, 一个时间戳, 和评论内容本身. 如果我们想要求每个文档都包含一个created_at域, 我们可以把这个域的声明拿到任何条件逻辑外面.
 
 #### 时间戳 ####
 
-时间戳是验证函数里一个有趣的问题. 因为验证函数在备份时会执行, 而在平常的客户端访问期间也同样运行的, 所以我们不能要求时间戳能设置成接近系统时间. 我们能要求做到这两点: 在时间戳初始化后不再改变, 和时间戳是合理格式化的. 怎么样才算合理格式化的取决于你的应用. 我们来看看Sofa的特定要求, 以及关于时间戳格式的一些题外选项.
+时间戳是验证函数里一个有趣的问题. 因为验证函数在复制时会执行, 而在平常的客户端访问期间也同样运行的, 所以我们不能要求时间戳会被设置成接近系统时间. 我们能要求做到的有这两点: 在时间戳初始化后不再改变, 和时间戳是合理格式化的. 怎么样才算合理格式化的取决于你的应用. 我们来看看Sofa的特定要求, 以及关于时间戳格式的一些题外话.
 
 首先, 让我们来看一个验证辅助方法, 它的作用是: 一旦域被设定以后, 在以后的文档更新中就不允许被改变:
 
@@ -143,17 +142,17 @@ JavaScript的相等测试不适合于那些尝试嵌套的对象. 我们使用Co
 				js> [] == []
 				false
 
-JavaScript把这两个数组认为是不同的, 因为它不看数组的内容来作判断. 因为它们是不同的对象, JavaScript认为它们是不等的. 我们使用toJSON函数来把对象转换成字符串形式, 这让两个有着相同内容的对象在做相等测试时可以更容易成功. 但在对象嵌套非常深的情况下, 这并不能保证成功, 因为toJSON可能会把对象序列化. 
+JavaScript把这两个数组认为是不同的, 因为它不看数组的内容来作判断. 它们是两个不同的对象, 所以JavaScript认为它们是不等的. 我们使用toJSON函数来把对象转换成字符串形式, 这让两个有着相同内容的对象在做相等测试时可以更容易成功. 但在对象嵌套非常深的情况下, 这并不能保证一定成功, 因为toJSON可能会把对象序列化. 
 
-The js command gets installed when you install CouchDB’s SpiderMonkey dependency. It is a command-line application that lets you parse, evaluate, and run JavaScript code. js lets you quickly test JavaScript code snippets like the one previously shown. You can also run a syntax check of your JavaScript code using js file.js. In case CouchDB’s error messages are not helpful, you can resort to testing your code standalone and get a useful error report.
+js命令在安装CouchDB的信赖包SpiderMonkey时被一起安装了. 它是一个命令行应用, 可以用来解析, 评估, 和运行JavaScript代码. js让你可以快速的测试JavaScript代码片段, 就像前面那个例子所展示的那样. 还可以用js file.js这样的命令来检查JavaScript代码的语法. 如果CouchDB的错误信息不是那么有用, 你可以求助于它来独立的测试代码, 并得到一个有用的错误报告.
 
-#### 作者 ####
+#### 谁是作者 ####
 
-作者在分布式系统里是一个有趣的问题. 在有些环境里, 你可以信任服务器来指定文档的作者. 目前而言, CouchDB有一个内建的简单的验证系统来管理node admins. 可以增加一个数据库管理员的角色, 也可以增加其他的角色. 验证系统是可以用来嵌入的, 所以你可以把现存的服务通过HTTP层整合进CouchDB来验证用户, 也可以使用LDAP整合, 或者用其他的方法.
+谁是作者在分布式系统里是一个有趣的问题. 在有些环境里, 你可以信任服务器来指定文档的作者. 目前而言, CouchDB有一个内建的简单的认证系统来管理节点管理员. 开发计划中不仅可以增加一个数据库管理员的角色, 还可以增加其他的角色. 认证系统是可嵌入的, 所以你通过HTTP层把现有的服务整合进CouchDB来认证用户, 也可以使用LDAP整合, 或者用其他的方法.
 
-Sofa使用内建的node admin帐号系统, 这样可以最好的适合于单人的或者一个小团队的作者. 扩展Sofa使其能把作者验证信息到CouchDB本身就作为留给读者的一个练习了.
+Sofa使用内建的节点管理员帐号系统, 所以最适合于个人的或者一个小团队的作者管理. 扩展Sofa使其能把作者验证信息保存到CouchDB本身就作为留给读者的一个练习了.
 
-Sofa的验证逻辑是, 一个包含有作者域的文档必须由那个域指定的作者来保存:
+Sofa的验证逻辑是, 一个包含有作者域的文档必须由那个域指定的作者来进行保存:
 
 				function(newDoc, oldDoc, userCtx) {
 					if (newDoc.author) {
@@ -164,6 +163,6 @@ Sofa的验证逻辑是, 一个包含有作者域的文档必须由那个域指�
 
 ### 收尾 ###
 
-验证函数是一个可以保证只有你想要文档才能进入数据库的强大工具. 你可以验证想要进入数据库的文档的内容, 结构以及做出这个写入请求的用户. 这三个角度的验证并在一起让你可以构建复杂的验证逻辑来阻止任何人损坏污染你的数据库.
+验证函数是一个可以保证只有想要文档才能保存到数据库的强大工具. 你可以验证想要进入数据库的文档的内容, 结构以及做出这个写入请求的用户. 这三个角度的验证并在一起让你可以构建复杂的验证逻辑来防止任何人损坏污染你的数据库.
 
-当然, 验证函数并不是一个完整安全系统的替代品, 尽管它们经常并存并且和CouchDB的其他安全机制合作的很好. 关于更多的CouchDB安全机制, 请阅读第22章, 安全.
+当然, 验证函数并不是一个完备的安全系统的替代品, 尽管它们经常并存并且和CouchDB的其他安全机制配合的很好. 关于更多的CouchDB安全机制的介绍, 请阅读第22章, 安全性.
