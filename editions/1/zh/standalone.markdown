@@ -14,7 +14,7 @@ CouchDB在很多领域都很有用. 因为它的增量MapReduce和复制特性, 
 
 本书的发行版将对应于CouchDB的0.10.0版本. 大多数的代码写于版本0.9.1和将要成为0.10.0的开发分支上. 在这一部分中, 我们会使用其他两个软件包: CouchApp, 它是一个包含编辑和分享CouchDB应用代码的工作集; 以及Sofa, 示例博客应用本身.
 
-See http://couchapp.org for the latest information about the CouchApp model.
+请查看http://couchapp.org来获取关于CouchApp模型的最新信息.
 
 读者需要自己寻找这些软件包的正确版本. 对于CouchApp来说, 正确的版本永远是最新的那个版本. 正确版本的Sofa取决于你使用的CouchDB版本. 要知道你使用的CouchDB是什么版本, 运行下面的代码:
 
@@ -50,9 +50,9 @@ CouchApps对于CouchDB教学来说一个极好的容器, 因为我们不需要�
 
 因为应用只是一个特殊类型的文档, 就很容易编辑和分享.
 
-J. Chris says: Thinking of peer-based application replication takes me back to my first year of high school, when my friends and I would share little programs between the TI-85 graphing calculators we were required to own. Two calculators could be connected via a small cable and we’d share physics cheat sheets, Hangman, some multi-player text-based adventures, and, at the height of our powers, I believe there may have been a Doom clone running.
+J. Chris说: 讲到基于节点的应用程序让我回想起高中一年级时的事情. 那时候, 我和我的朋友们在仅有的TI-85图形计算器之间分享小程序. 两个计算器之间通过一根小数据线连接, 另外我们还有一张纸制的速查表. 我们玩一个叫Hangman的游戏, 它是一个基于文本的多人冒险游戏, 以我们当时的能力, 大概做出来了一个类似于Doom的克隆.
 
-The TI-85 programs were in Basic, so everyone was always hacking each other’s hacks. Perhaps the most ridiculous program was a version of Spy Hunter that you controlled with your mind. The idea was that you could influence the pseudorandom number generator by concentrating hard enough, and thereby control the game. Didn’t work. Anyway, the point is that when you give people access to the source code, there’s no telling what might happen.
+TI-85的程序是用Basic写的, 所以大家总是会hack其他人所做的东西. 最荒谬的一个程序可能就是Spy Hunter游戏的一个版本了, 它要使用意念来进行控制. 基本的思想就是, 你只要足够的集中注意力, 就可以影响伪随机数的产生, 从而达到控制游戏的目的. 当然最终我们没能做出来. 不管怎么说, 这里的重点在于, 当源代码分享出来可以被其他人访问时, 什么事情都可能会发生.
 
 如果有人不喜欢你的应用的审美观, 他们可以修改CSS. 如果有人不喜欢你的界面设计, 他们可以改进HTML. 如果有人想要修改某些功能, 他们可以编辑JavaScript. 更为极端的, 他们可以完全改变你的应用来适合他们自己的目标. 他们可能会把修改的版本展示给同学和同事看, 并且很有可能的, 也会展示给你看, 这就意味着更多的人会想要做出改进.
 
