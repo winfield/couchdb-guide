@@ -1,18 +1,18 @@
 ## 管理设计文档 ##
 
-运行在CouchDB里的应用--很好. 只需要附加一些HTML和JavaScript文件到设计文档然后就可以运行了. 加上视图构建的查询以及可以从JSON文档中生成任何media type的show函数, 你有了所有的工具可以写出自包含的CouchDB应用.
+应用可以直接运行在CouchDB里--太好了. 只需要附加一些HTML和JavaScript文件到设计文档然后就可以运行了. 加上基于视图的查询以及可以从JSON文档中生成任何类型输出的显示函数, 你已经有了所有的, 可以写出自包含的CouchDB应用的工具了.
 
-### Working with the Example Application ###
+### 使用示例应用 ###
 
-If you want to install and hack on your own version of Sofa while you read the following chapters, we’ll be using CouchApp to upload the source code as we explore it.
+如果你想要在看接下来几章的过程中安装并修改Sofa, 会要使用CouchApp来上传源代码.
 
-We’re particularly excited by the prospect of deploying applications to CouchDB because, depending on a least-common denominator environment, that encourages users to control not just the data but also the source code, which will let more people build personal web apps. And when the web app you’ve hacked together in your spare time hits the big time, the ability of CouchDB to scale to larger infrastructure sure doesn’t hurt.
+我们对于把应用部署到CouchDB的前景尤其感到兴奋. 因为, 在一个相同的环境里, 它鼓励用户不仅要控制数据还要控制源代码, 这就可以让更多的人构建自己的web应用了. 当你在空闲时间开发的web应用发展壮大的时候, CouchDB的扩展能力可以轻松的扩展到更大的硬件设备上.
 
-在一个CouchDB设计文档中, 不同的开发语言(HTML, JS, CSS)放在不同的位置, 放在附件或者设计文档的属性里. 理想状态下, 你会想要开发环境能尽可能的帮助你. 更重要的是, 你已经习惯于合适的语法高亮, 验证, 整合的文档, 宏, 辅助方法以及其他的. 在JSON对象里以字符串的形式编辑HTML和JavaScript代码不是现代人所做的.
+在一个CouchDB设计文档中, 不同的开发语言(HTML, JS, CSS)放在不同的位置, 放在附件或者设计文档的属性里. 理想状态下, 你会想要开发环境能尽可能的帮助你减少工作量. 更重要的是, 你已经习惯于合适的语法高亮, 验证, 整合的文档, 宏, 辅助方法以及其他的帮助了. 在JSON对象里以字符串的形式编辑HTML和JavaScript代码不是现代人所做的工作.
 
-幸运的是, 我们有一个解决方法. CouchApp. CouchApp让你可以在一个舒服的目录结构里开发CouchDB应用, 目录里views和shows是相分隔的, .js文件被清晰的管理; 静态文件(CSS, 图片)有自己的位置; 而且使用简单的couchapp push, 就可以把你的应用保存到CouchDB的设计文档里. 想做一个更改? 再做一次couchapp push就可以了.
+幸运的是, 我们有一个解决方法. CouchApp. CouchApp让你可以在一个舒服的目录结构里开发CouchDB应用, 目录里views和shows是相分隔的, .js文件被清晰的管理; 静态文件(CSS, 图片)有自己的位置; 而且使用简单的couchapp push, 就可以把应用保存到CouchDB的设计文档里. 如果想做一个更改? 再做一次couchapp push就可以了.
 
-这一章节会指导你CouchApp的安装过程和它的moving parts. 你将会学到它还有哪些漂亮的辅助方法来使生活更加简单. 当有了CouchApp后, 我们会用它来安装和部署Sofa到CouchDB数据库.
+这一章节会指导你CouchApp的安装过程和它的组件. 你将会学到它所拥有的那些可以帮助你工作的辅助方法. 当有了CouchApp后, 我们会用它来安装和部署Sofa到CouchDB数据库.
 
 ### 安装CouchApp ###
 
@@ -28,27 +28,28 @@ We’re particularly excited by the prospect of deploying applications to CouchD
 
 一般这样就可以了, 你可以开始使用CouchApp了. 如果还是不能, 请继续看下去.
 
-安装Couchapp时遇到的最普遍的问题是因为老版本的依赖, 特别是easy_install本身. 如果你得到了一个安装错误, 最好的下一步做法就是尝试升级setuptools然后通过下面的命令升级CouchApp
+安装Couchapp时遇到的最普遍的问题是因为老版本的依赖, 特别是easy_install本身. 如果你遇到了一个安装错误, 最好的下一步做法就是尝试升级setuptools然后通过下面的命令升级CouchApp
 
 				sudo easy_install -U setuptools
 				sudo easy_install -U couchapp
 
-If you have other problems installing CouchApp, have a look at setuptools for Python’s easy install troubleshooting, or visit the CouchApp mailing list.
-如果你有其他的安装问题, 看一看setuptools的Python easy install问题解决, 或者访问[CouchApp的邮件列表]
+如果你有其他的安装问题, 看一看setuptools的Python easy install问题解决, 或者访问CouchApp的邮件列表
 
 ### 使用CouchApp ###
 
-通过easy_install安装CouchApp应该来说, 还是很简单的. 假设一切如愿, 它会管理所有的依赖并且把CouchApp的工具放到系统的PATH, 这样你就能马上开始使用它了:
+通过easy_install安装CouchApp应该来说, 还是很简单的. 假设一切如愿, 它会管理所有的依赖并且把CouchApp的一些工具放到系统的PATH, 这样你就能马上开始使用它了:
 
 				couchapp --help
 
-我们会使用clone和push命令. clone会从一个云端的运行中的实例中拉取应用, 并把它保存在本地的一个目录结构里. push则会从本地文件系统中部署一个standalone CouchDB应用到任意一个你有管理权限的CouchDB里.
+我们会使用clone和push命令. clone会从一个云端的运行中的实例中拉取应用, 并把它保存在本地的一个目录结构里. push则会从本地文件系统中部署一个独立的CouchDB应用到任意一个你有管理权限的CouchDB里.
 
 ### 下载Sofa源代码 ###
 
-有三种方法可以得到Sofa源代码. 这三种方法都同样有效; 只是一种个人的喜好以及在得到源代码后你将如何使用它. 最简单的方法是使用CouchApp把它从一个运行的实例中clone过来. 如果在前一个部分中没有安装CouchApp, 你可以通过下载解压ZIP或者TAR的源代码包来阅读(但不能安装和运行)它们. 如果你对hacking Sofa或者想要加入开发社区, 最好的方法是从官方的Git库中获取源代码. 我们会逐一讲解这三种方法. First, enjoy Figure 1, “A happy bird to ease any install-induced frustration”.
+有三种方法可以得到Sofa源代码. 这三种方法都可以; 取决于个人的喜好以及在得到源代码后你将如何使用它. 最简单的方法是使用CouchApp把它从一个运行的实例中clone过来. 如果在前一个部分中没有安装CouchApp, 你可以通过下载解压ZIP或者TAR的源代码包来阅读(但不能安装和运行)它们. 如果你对hacking Sofa或者想要加入开发社区, 最好的方法是从官方的Git库中获取源代码. 我们会逐一讲解这三种方法. 先来看看下面这张图片吧, 图1, "一只用来消除任何安装带来的沮丧的小鸟".
  
-Figure 1. A happy bird to ease any install-induced frustration
+![一只用来消除任何安装带来的沮丧的小鸟](managing/01.png)
+
+图1. 一只用来消除任何安装带来的沮丧的小鸟
 
 #### CouchApp Clone ####
 
@@ -64,14 +65,13 @@ Figure 1. A happy bird to ease any install-induced frustration
 
 #### ZIP and TAR Files ####
 
-如果你只是想在阅读本书的时候研读下源代码, Sofa有标准ZIP或者TAR格式的源代码包下载. 要得到ZIP版本的源代码, 在浏览器中访问以下的URL, 它会将你指向最新的ZIP文件: http://github.com/couchapp/couchapp/zipball/master. 如果你更喜欢TAR文件, 在这里:http://github.com/couchapp/couchapp/zipball/master.
+如果只是想在阅读本书的时候研读下源代码, Sofa有标准ZIP或者TAR格式的源代码包下载. 要得到ZIP版本的源代码, 在浏览器中访问以下的URL, 它会将你指向最新的ZIP文件: http://github.com/couchapp/couchapp/zipball/master. 如果你更喜欢TAR文件, 在这里:http://github.com/couchapp/couchapp/tarball/master.
 
 #### 加入Github上的Sofa开发社区 ####
 
-The most up-to-date version of Sofa will always be available at its public code repository. If you are interested in staying up-to-date with development efforts and contributing patches back to the source, the best way to do it is via Git and GitHub.
 最新版本的Sofa永远会是在它的公开代码库上. 如果你对最新的开发以及贡献补丁感兴趣, 最好的方法是通过Git和GitHub.
 
-Git是一个分布式的版本控制工具, 它可以让多组开发者跟踪和分享软件代码的变更. 如果你熟悉Git, 那通过它来使用Sofa没有任何问题. 如果你以前从来没有使用过Git, 则会有一点学习曲线. 所以根据你自己对于新软件的容忍度, 你可能会想要节省下学习Git的时间或者你会想要先学习一下Git! 关于更多的关于Git以及如何安装它的信息, 请查看Git的官方主页. 关于其他使用Git的技巧和帮助, 请查看Github的guides页面.
+Git是一个分布式的版本控制工具, 它可以让多组开发者跟踪和分享软件代码的变更. 如果你熟悉Git, 那通过它来使用Sofa没有任何问题. 如果你以前从来没有使用过Git, 则会有一点学习曲线. 所以根据自己对于新软件的容忍度, 你可能会想要节省下学习Git的时间或者会想要先学习一下Git! 关于更多的关于Git以及如何安装它的信息, 请查看Git的官方主页. 关于其他使用Git的技巧和帮助, 请查看Github的guides页面.
 
 要通过Git得到Sofa(包括所有的开发历史), 运行下面的命令:
 
@@ -81,7 +81,7 @@ Git是一个分布式的版本控制工具, 它可以让多组开发者跟踪和
 
 #### Sofa源代码的树结构 ####
 
-当你成功使用任一方法后, 你会在本地得到一份Sofa的源代码. 下面的文本是在Sofa目录上使用tree命令生成的, 它展示了Sofa包含的所有文件. 
+当成功使用任一方法后, 你会在本地得到一份Sofa的源代码. 下面的文本是在Sofa目录上使用tree命令生成的, 它展示了Sofa包含的所有文件. 
 				sofa/
 				|-- README.md
 				|-- THANKS.txt
@@ -100,29 +100,29 @@ Git是一个分布式的版本控制工具, 它可以让多组开发者跟踪和
 				|   |-- tests.js
 				|   `-- textile.js
 
-_attachments目录包含了作为附件保存到Sofa设计文档的文件. CouchDB会直接提供附件的服务(而不是把它们包含在JSON包里), 所有这就是我们存储JavaScript, CSS和HTML文件的地方, 这样浏览器就能直接访问到它们了.
+_attachments目录包含了作为附件保存到Sofa设计文档的文件. CouchDB服务器能让外部直接访问附件(而不是把它们包含在JSON包里), 所有这就是我们存储JavaScript, CSS和HTML文件的地方, 这样浏览器就能直接访问到它们了.
 
-Making your first edit to the Sofa source code will show you how easy it is to modify the application.
+自己尝试一下修改Sofa的源代码, 你就会发现修改一个应用是多么的简单.
 
 				|-- blog.json
 
-blog.json文件包含了用于配置个人Sofa安装的JSON. 目前, 它设置了一个值, 博客的标题. 现在你应该打开这个文件并个性化title这个域--你可能并不想把你的博客命名为"Daytime Running Lights", 你脑袋里可以蹦出更加有趣的标题!
+blog.json文件包含了用于配置个人Sofa安装的JSON. 目前, 它只设置了一个值, 博客的标题. 现在你应该打开这个文件并个性化title这个域--可能并不想把你的博客命名为"Daytime Running Lights", 你脑袋里可以蹦出一些更加有趣的标题!
 
 你可以加入其他的博客配置到这个文件里--像每一页要展现多少日志, "关于作者"页面的URL之类的. 在你看完接下来的几个章节后, 要加入这些改变到应用里会变得很简单.
 
 				|-- couchapp.json
 
-We’ll see later that couchapp outputs a link to Sofa’s home page when couchapp push is run. 原理很简单: CouchApp会在设计文档中寻找一个JSON域-design_doc.couchapp.index. 如果找到了, 它会把其中的值附加到设计文档本身的URL后面来生成URL. 如果没有指定CouchApp index, 但设计文档有一个附件叫index.html, 那么它就会被认为是首页. 在Sofa这个例子里, 我们使用了index域值来把首页指向一个最近日志的列表.
+我们会在后面看到, 当运行couchapp push命令时, couchapp会打印出Sofa首页的链接. 原理很简单: CouchApp会在设计文档中寻找一个JSON域-design_doc.couchapp.index. 如果找到了, 它会把其中的值附加到设计文档本身的URL后面来生成URL. 如果没有指定CouchApp index, 但设计文档有一个附件叫index.html, 那么它就会被认为是首页. 在Sofa这个例子里, 我们使用了index域值来把首页指向一个最近日志的列表.
 
 				|-- helpers
 				|   `-- md5.js
 
-helpers目录只是一个arbitrary选择-CouchApp会把里面的任何文件和目录推送到设计文档. 在这个例子里, md5.js的源代码是JSON编码的, 它会被存放在design_document.helpers.md5元素里.
+helpers目录是否存在是随意的--CouchApp会把里面的任何文件和目录推送到设计文档. 在这个例子里, md5.js的源代码是JSON编码的, 它会被存放在design_document.helpers.md5元素里.
 
 				|-- lists
 				|   `-- index.js
 
-lists目录包含了一个JavaScript函数, 这个函数会被CouchDB执行来生成Sofa的HTML首页和Atom Feed. 你可以通过在这个目录里添加新文件来加入新的list函数. 第14章, Viewing Lists of Blog Posts, 深入讲解了List函数.
+lists目录包含了一个JavaScript函数, 这个函数会被CouchDB执行来生成Sofa的HTML首页和Atom Feed. 你可以通过在这个目录里添加新文件来加入新的list函数. 第14章, 显示博客日志列表里, 会深入讲解列表函数.
 
 				|-- shows
 				|   |-- edit.js
@@ -138,7 +138,7 @@ shows目录包含了CouchDB用来生成博客日志HTML的函数. 这个例子�
 				|   |   `-- tail.html
 				|   `-- post.html
 
-templates目录更像helpers目录而不像lists, shows或者views目录, 在它里面存放的代码不会直接被CouchDB服务端执行. Instead, 当代码推送到服务器时, 模版会用通过执行CouchApp的宏被包含在list和show函数中. 这些CouchApp宏在第12章, 存储文档里有讲到. 关于templates目录关键的一点是目录名可以是任意的. 它不是设计文档的一个特殊域; 它只是一个用来存放我们模版文件的一个地方.
+templates目录更像helpers目录而不像lists, shows或者views目录, 在它里面存放的代码不会直接被CouchDB服务端执行. 而是当代码推送到服务器时, 通过执行CouchApp的宏被包含在list和show函数中. 这些CouchApp宏在第12章, 存储文档里有讲到. 关于templates目录关键的一点是目录名可以是任意的. 它不是设计文档的一个特殊域; 它只是一个用来存放我们模版文件的一个地方.
 
 				|-- validate_doc_update.js
 
@@ -172,8 +172,7 @@ views目录包含了MapReduce视图的定义, 每一个视图都由一个目录�
 
 ### 部署Sofa ###
 
-The source code is safely on your hard drive, and you’ve even been able to make minor edits to the blog.json file. Now it’s time to deploy the blog to a local CouchDB. The push command is simple and should work the first time, but two other steps are involved in setting up an admin account on your CouchDB and for your CouchApp deployments. By the end of this chapter you’ll have your own running copy of Sofa.
-你本地已经有了源代码, 还可以对blog.json做些小的修改. 现在是时候把博客部署到本地的CouchDB了. push命令的使用很简单而且第一次时应该肯定会成功, 但还有其他两个需要做的步骤: 在CouchDB里以及CouchApp部署参数里设置你的管理员帐号. 在本章结束时, 你将会有一个运行中的Sofa.
+你本地已经有了源代码, 还可以对blog.json做些小的修改. 现在是时候把博客部署到本地的CouchDB了. push命令的使用很简单而且第一次使用时应该会成功, 但还有其他两个需要做的步骤: 在CouchDB里以及CouchApp部署参数里设置你的管理员帐号. 在本章结束时, 你将会有一个运行中的Sofa.
 
 #### 把Sofa推送到你的CouchDB
 
@@ -203,13 +202,15 @@ The source code is safely on your hard drive, and you’ve even been able to mak
 
 如果CouchDB已经运行了, 那么couchapp push命令应该已经给你指明了应用了首页URL. 访问这个URL应该会把你带到如图2, "空白的首页"所示的页面.
 
-Figure 2. Empty index page
+![空白的首页](managing/02.png)
+
+图2. 空白的首页
 
 在得到一个功能完全的Sofa实例前, 我们还有些没有做完, 还有几个步骤留下.
 
 ### 创建你的管理员帐号 ###
 
-Sofa是一个单用户应用. 你, 博客的作者, 就是管理员, 是唯一可以添加和修改日志的人. 为了确保没有其他人可以登录在你的博客里乱写, 你必须在CouchDB里创建一个管理员帐号. 这是一个很自然的任务(un: straightforward task). 找到你的local.ini文件, 用编辑器打开. (默认地, 它存储在目录/usr/local/etc/couchdb/local.ini.) 如果你还没有创建过管理员帐号, 打开文件末尾[admmins]那部分的注释, 在[admins]下面加入一行, 内容是你想要的用户名和密码:
+Sofa是一个单用户应用. 你, 博客的作者, 就是管理员, 是唯一可以添加和修改日志的人. 为了确保没有其他人可以登录在你的博客里乱写, 你必须在CouchDB里创建一个管理员帐号. 这是一个很简单的任务. 找到你的local.ini文件, 用编辑器打开. (默认地, 它存储在目录/usr/local/etc/couchdb/local.ini.) 如果你还没有创建过管理员帐号, 打开文件末尾[admmins]那部分的注释, 在[admins]下面加入一行, 内容是你想要的用户名和密码:
 
 				[admins]
 				jchris = secretpass
@@ -231,13 +232,12 @@ Sofa是一个单用户应用. 你, 博客的作者, 就是管理员, 是唯一�
 
 请把jchris和密码替换为你自己的, 不然你会得到一个"permission denied"的错误. 如果一切顺利, 所有的都已经在CouchDB里设置完毕, 你可以开始使用你的博客了.
 
-到了这里, 技术上来说, 我们可以继续讲解其他内容了, 但如果可以使用接下来要讲的.couchapprc文件, 你会更加开心.
+到了这里, 从技术上来说, 我们可以继续讲解其他内容了, 但如果可以使用接下来要讲的.couchapprc文件, 你会更加开心.
 
 ### 通过.couchapprc来配置CouchApp
 
 如果你不想每次push时都要在命令行里输入完整的URL(可能还要包括认证的参数), 你可以使用.couchapprc文件来存储部署设置. 这个文件的内容不会像其他文件那样被push, 所以当你要部署到一个有安全机制的服务器时, 把认证信息放在这里是安全的.
 
-The .couchapprc file lives in the source directory of your application, so you should look to see if it is at /path/to/the/directory/of/sofa/.couchapprc (or create it there if it is missing). Dot files (files with names that start with a period) are left out of most directory listings. Use whatever tricks your OS has to “show hidden files.” The simplest one in a standard command shell is to list the directory using ls -a, which will show all hidden files as well as normal files.
 .couchapprc文件是在你应用源代码的目录中, 所以你应该看看它是不是在目录/path/to/the/directory/of/sofa/.couchapprc里(如果不存在就创建一个). 点文件(文件名以点号开头的文件)在大多数的文件管理器里不会被列出来. 使用你操作系统的各种技巧来"显示隐藏文件". 最简单的方法就是用在标准命令行shell里使用ls -a, 这条命令会显示所有的隐藏文件和普通文件.
 
 						{

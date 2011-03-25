@@ -1,4 +1,4 @@
-## Viewing Lists of Blog Posts ##
+## 显示博客日志列表 ##
 
 最近的几个章节讨论了如何把数据从CouchDB里取出来. 你学到了如何建模数据到文档, 然后通过HTTP API把它取出来. 在本章节中, 我们会来看看实现Sofa首页的视图, 以及根据客户端请求生成这些HTML或者XML的list函数.
 
