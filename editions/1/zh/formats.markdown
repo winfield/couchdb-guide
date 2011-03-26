@@ -1,16 +1,18 @@
 ## 使用自定义的格式来显示文档 ##
 
-CouchDB show函数的RESTful API是由Lotus Notes的一个类似的功能启发而来的. 简言之就是允许你提供给客户端以任何你想要格式的文档.
+CouchDB显示函数的RESTful API是受到Lotus Notes的一个类似功能的启发而来的. 简言之就是可以让你提供给客户端以任何你想要格式的文档.
 
-一个show函数, 根据存储的JSON文档, 对于任何的Content-Type都会构建一个HTTP响应. 对于Sofa来说, 我们会使用它来显示博客日志的页面. 这样就能保证这些页面可以被搜索引擎索引, 也可以让页面变得更容易访问. Sofa的show函数显示每个日志页面为HTML页面, 且链接有样式表以及其他资源(assets), 它们以附件的形式存储在Sofa的设计文档中.
+一个显示函数, 根据存储的JSON文档, 对于任何的Content-Type都会构建一个HTTP响应. 对于Sofa来说, 我们会使用它来显示博客日志的页面. 这样就能保证这些页面可以被搜索引擎索引, 也可以让页面变得更容易访问. Sofa的显示函数显示每个日志页面为HTML页面, 且链接有样式表以及其他资源, 它们以附件的形式存储在Sofa的设计文档中.
 
 哈, 这太棒了--我们已经生成了一个日志! 见图1, "一个生成好的日志".
 
-Figure 1. A rendered post
+![一个生成好的日志](formats/01.png)
 
-完整的show函数和模版会生成一个静态的, 可缓存的资源. 这个资源不依赖于当前用户的各种细节或者任何除了被请求文档和Content-Type以外的因素. 从show函数生成HTML不会在数据库产生任何副作用, 这对于构建简单的可扩展的应用有着很积极的影响.
+图1. 一个生成好的日志
 
-### 用show函数来展现文档 ###
+完整的显示函数和模版会生成一个静态的, 可缓存的资源. 这个资源不依赖于当前用户的各种细节或者任何除了被请求文档和Content-Type以外的因素. 从显示函数生成HTML不会在数据库产生任何副作用, 这对于构建简单的可扩展的应用有着很积极的影响.
+
+### 用显示函数来展现文档 ###
 
 让我们来看看源代码. 首先我们要看的是JavaScript函数的函数体, 它十分简单--只是运行了一个模版函数来生成HTML页面. 让我们把它分块来看看:
 
@@ -31,8 +33,7 @@ Figure 1. A rendered post
 						date : doc.created_at,
 						author : doc.author,
 
-The blog post title, HTML body, author, and date are taken from the document, with the blog’s title included from its JSON value. The next three calls all use the path.js library to generate links based on the request path. This ensures that links within the application are correct.
-日志的标题, HTML体, 作者和日期是从文档里取出来的, 并且还带上了博客标题. 接下的三个调用都使用了path.js库, 根据请求的路径来生成链接. 这保证了应用里的链接都是正确的.
+日志的标题, HTML体, 作者和日期是从文档里取出来的, 并且还带上了博客标题. 接下的三个调用都使用了path.js库, 它会根据请求的路径来生成链接. 这保证了应用内部的链接都是正确的.
 
 						assets : assetPath(),
 						editPostPath : showPath('edit', doc._id),
@@ -40,7 +41,7 @@ The blog post title, HTML body, author, and date are taken from the document, wi
 					});
 				}
 
-所以我们看到函数体本身只是计算了一些值(根据文档, 请求, 以及一些部署细节, 像数据库名字之类的), 然后就发送给模版来生成. 真正起作用的是在HTML模版里. 我们来看看.
+所以我们看到函数体本身只是计算了一些值(根据文档, 请求, 以及一些部署细节, 像数据库名字之类的), 然后就发送给模版来进行生成了. 真正起作用的是在HTML模版里. 我们来看看.
 
 #### 日志页面模版 ####
 
@@ -59,7 +60,7 @@ Sofa使用的模版引擎来自John Resig的博客日志, "JavaScript Micro-Temp
 
 						<link rel="stylesheet" href="../../screen.css" type="text/css">
 
-因为show函数通过设计文档中的路径访问, 所以我们可以通过相对路径的URI来链接到附件. 这里我们链接的是screen.css, 一个存储在Sofa源代码_attachements目录的文件.
+因为显示函数通过设计文档中的路径访问, 所以我们可以通过相对路径的URI来链接到附件. 这里我们链接的是screen.css, 一个存储在Sofa源代码_attachements目录的文件.
 
 					</head>
 					<body>
@@ -67,7 +68,7 @@ Sofa使用的模版引擎来自John Resig的博客日志, "JavaScript Micro-Temp
 							<a id="edit" href="<%= editPostPath %>">Edit this post</a>
 							<h2><a href="<%= index %>"><%= blogName %></a></h2>
 
-再一次, 我们模版标签来代替内容. 在这个例子里, 我们链接到了这个日志的编辑页面, 以及到博客首页的链接.
+再一次用模版标签来代替内容. 在这个例子里, 链接到了这个日志的编辑页面, 以及到博客首页的链接.
 
 						</div>
 						<div id="content">
@@ -75,7 +76,7 @@ Sofa使用的模版引擎来自John Resig的博客日志, "JavaScript Micro-Temp
 							<div id="post">
 								<span class="date"><%= date %></span>
 
-日志标题用于<h1>标签, 日期则放在一个class为date的<span>标签里. 为什么我们在这里放入的是静态的日志, 而不是更加用户友好的像是"三天前"之类的数据, 要请查看下面的"动态日期"部分
+日志标题用于<h1>标签, 日期则放在一个class为date的<span>标签里. 为什么在这里放入的是静态的日志, 而不是更加用户友好的像是"三天前"之类的数据, 要请查看下面的"动态日期"部分
 
 				<div class="body"><%= post %></div>
 							</div>
@@ -83,16 +84,16 @@ Sofa使用的模版引擎来自John Resig的博客日志, "JavaScript Micro-Temp
 					</body>
 				</html>
 
-这模版的结尾, 我们生成日志的内容(as converted from Markdown and saved from the author’s browser).
+模版的结尾, 我们生成日志的内容(通过转换作者所保存的Markdown格式的文档).
 
 ### 动态日期 ###
 
-如果CouchDB运行在一个缓存代理之后, 这就意味着每个show函数应该只会在每个更新的文档上运行一次. 这也解释了为什么时间戳会像是2008/12/25 23:27:17 +0000, 而不是"9天前"这样子的.
+如果CouchDB运行在一个缓存代理的后面, 这就意味着每个显示函数应该只会在每个更新的文档上运行一次. 这也解释了为什么时间戳应该是2008/12/25 23:27:17 +0000, 而不是"9天前"这样子的.
 
-这也意味着如果想要根据当年时间来显示时间, 或者根据浏览页面的用户来显示时间, 我们就需要使用客户端的JavaScript来对最终的HTML页面作动态改变.
+这还意味着如果想要根据当前时间来显示时间, 或者根据浏览页面的用户来显示时间, 我们就需要使用客户端的JavaScript来对最终的HTML页面作动态改变.
 
 						$('.date').each(function() {
 							$(this).text(app.prettyDate(this.innerHTML));
 						});
 
-我们包含了这个客户端JavaScript实现的细节并不是要教你Ajax, 而是因为这对于在如何在客户端展现文档有着代理意义. 根据客户端的请求, CouchDB可以提供任何格式的文档. 但是在从其他查询集成信息或者和其他web services一起实现实时展现时, 通过客户端来作这些工作, 可以把计算时间和内存消耗从CouchDB转向客户端. 因为客户端的数量远比CouchDB来的多, 把负载放到客户端就意味着每个CouchDB可以承受更多的用户.
+我们包含了这个客户端JavaScript实现的细节并不是要教你Ajax, 而是因为这可以作为如何在客户端展现文档时的一个典型例子. 根据客户端的请求, CouchDB应该提供最有用的文档格式. 但当要从其他查询集成信息, 或者要集成其他web services, 实现实时展现时, 通过客户端来作这些工作, 可以把计算时间和内存消耗从CouchDB转向客户端. 因为客户端的数量远比CouchDB来的多, 把负载放到客户端就意味着每个CouchDB可以承载更多的用户.
