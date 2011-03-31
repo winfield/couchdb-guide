@@ -1,6 +1,6 @@
 ## 在视图中实现类似的SQL操作 ##
 
-本章是一个关于一些常见的SQL查询在CouchDB要如何得到相同的结果的集合. 这里关键要记住的是, CouchDB和SQL数据库的工作方式完全不同, 并且SQL世界的最佳实践并不能很好的或者说完全不能原原本本的翻译到CouchDB里. 本章节"cookbook"假设你对CouchDB的基础熟悉, 像创建更新数据库及文档等.
+本章是一个关于一些常见的SQL查询在CouchDB如何实现相同的结果的集合. 这里, 关键要记住的是, CouchDB和SQL数据库的工作方式完全不同, 并且SQL世界的最佳实践并不能很好的或者说完全不能原原本本的翻译到CouchDB里. 本章节假设你对CouchDB的基础熟悉, 比如创建, 更新数据库及文档等.
 
 ### 使用视图 ###
 
@@ -12,7 +12,7 @@
 
 				ALTER TABLE
 
-使用视图是一个两步走的过程: 首先你要定义一个视图; 然后你再来查询它. 这类似于使用CREATE TABLE或者ALTER TABLE定义一个表结构(带有索引), 然后使用SQL语句来查询它.
+使用视图是一个两步走的过程: 首先你要定义一个视图; 然后再来查询它. 这类似于使用CREATE TABLE或者ALTER TABLE定义一个表结构(带有索引), 然后使用SQL语句来查询它.
 
 ### 定义一个视图 ###
 
@@ -29,7 +29,7 @@
 					}
 				}
 
-我们定义了一个叫viewname的视图. 视图的定义包含了两个函数: map函数和reduce函数. 指定一个reduce函数并不是必须的. We'll look at the nature of the functions later. 注意视图名字可以是任何你喜欢: users, by-name, 或者by-date. 这只是几个例子.
+我们定义了一个叫viewname的视图. 视图的定义包含了两个函数: map函数和reduce函数. 指定一个reduce函数并不是必须的. 我们会在后面来讲解这些函数的本质. 注意视图名字可以是任何你喜欢: users, by-name, 或者by-date. 这只是几个例子.
 
 一个设计文档也可以包含多个视图定义, 每个视图都有一个唯一的名字:
 
@@ -50,7 +50,6 @@
 
 ### 查询视图 ###
 
-The name of the design document and the name of the view are significant for querying the view. To query the view viewname, you perform an HTTP GET request to the following URI:
 设计文档的名字和视图的名字对于查询一个视图来说很重要. 要想查询一个视图, 可以通过一个带有如下URI的HTTP GET请求:
 
 				/database/_design/application/_view/viewname
@@ -61,7 +60,7 @@ database是你的设计文档所在的数据库. 接下来是设计文档的名�
 
 MapReduce是一个用两个过程来解决问题的概念, 这两个过程分别被命名为map和reduce. map会在CouchDB里一个一个的查找所有的文档, 然后创建一个map结果. map结果一个经排序的key/value对的集合. key和value都可以在map函数里指定. 一个map函数可以在每个文档上调用0到N次的emit(key, value)函数, 每次执行都会创建map结果集中的一行.
 
-CouchDB很聪明, 在每个文档上只会跑一次map函数, 即便是在一个视图的子查询里. 只有文档变更了或者对于新创建文档map函数才会在它们上面重新运行.
+CouchDB很聪明, 在每个文档上只会运行一次map函数, 即便是在一个视图的子查询里. 只有文档变更了或者对于新创建文档map函数才会在它们上面重新运行.
 
 #### Map函数 ###
 
@@ -89,7 +88,7 @@ map的结果如下所示:
 
 #### Reduce函数 ####
 
-Reduce函数将会在下面的"Aggregate Functions"部分里讲解.
+Reduce函数将会在下面的"聚合函数"部分里讲解.
 
 ### 通过Key来查找 ###
 
@@ -101,7 +100,6 @@ Reduce函数将会在下面的"Aggregate Functions"部分里讲解.
 
 为了查找快速, 在不考虑存储机制的情况下, 索引是必需的. 索引是一个用于优化搜索以及读取速度的数据结构. CouchDB的map结果被存储于一个类似的索引中, 它是一个B+树.
 
-To look up a value by "searchterm", we need to put all values into the key of a view. All we need is a simple map function:
 要想根据"searchterm"来查找值, 我们需要把所有的值放在视图的key里面. 我们只需要一个简单的map函数:
 
 				function(doc) {
@@ -154,7 +152,7 @@ Consider the documents from the previous section, and say we’re indexing on th
 					"description": "some dude"
 				}
 
-not so well translated...做法是提取出这种类型的前缀并把它放入视图的索引中. 我们使用一个正则表达式来匹配这个前缀:
+做法是提取出所要查询前缀并把它放入视图的索引中. 我们使用一个正则表达式来匹配这个前缀:
 
 				function(doc) {
 					if(doc["mime-type"]) {
@@ -167,26 +165,23 @@ not so well translated...做法是提取出这种类型的前缀并把它放入�
 					}
 				}
 
-We can now query this view with our desired MIME type prefix and not only find all images, but also text, video, and all other formats:
 现在我们可以通过这个视图来查找想要的MIME类型了, 并且不只限于图片, 还可以是文本, 视频, 以及其他格式:
 
 				/files/_design/finder/_view/by-mime-type?key="image/"
 
-### Aggregate Functions ###
+### 聚合函数 ###
 
-How you would do this in SQL:
 在SQL, 我们是这么做的:
 
 				SELECT COUNT(field) FROM table
 
-Use case: calculate a derived value from your data.
+用途: 从数据中计算出一个衍生的值.
 
-我们还没有讲解过reduce函数. reduce函数和SQL中aggregate函数类似. 它们从多个文档中计算出一个值. 
+我们还没有讲解过reduce函数. reduce函数和SQL中的聚合函数类似. 它们从多个文档中计算出一个值. 
 
 为了解释清楚reduce函数的机制, 我们创建来创建一个并不是很合理的例子. 但是这个例子很容易理解. 在后面我们会讲些更加有用的reduce函数.
 
-Reduce functions operate on the output of the map function (also called the map re⁠sult or intermediate result). The reduce function’s job, unsurprisingly, is to reduce the list that the map function produces.
-reduce函数在map函数的输出上(也被叫做map结果或者中间结果)进行操作. reduce函数的工作, 没什么令人惊奇的, 就是减少map函数产生的列表.
+reduce函数在map函数的输出上(也被叫做map结果或者中间结果)进行操作. reduce函数的工作, 也没什么令人惊奇的, 就是减少map函数产生的列表.
 
 这就是我们的求和reduce函数的样子:
 
@@ -212,7 +207,6 @@ reduce函数接受两个参数: 一个key的列表和一个value的列表. 对�
 
 我们会看到在map和reduce函数之间有一个不同. map函数使用emit()来创建它的结果, 而reduce函数则返回一个值.
 
-For example, from a list of integer values that specify the age, calculate the sum of all years of life for the news headline, “786 life years present at event.” A little contrived, but very simple and thus good for demonstration purposes. Consider the documents and the map view we used earlier in this chapter.
 比如, 从一个表示年龄的整数值的列表里, 计算所有年龄的和. 虽然没什么用, 但是很简单也演示了我们的目的. 考虑下我们本章节前面的文档和map视图.
 
 用于计算所有女孩总年龄的reduce函数是:
@@ -231,7 +225,7 @@ reduce视图的结果如下所示:
 
 所以年龄的和在我们的文档里是15. 这就是我们想要的. 结果的key这个域是null, 因为我们找不出哪些文档参与的创建reduce结果的过程. 我们会在后面讲到更加的更加高级的reduce的用法.
 
-通常来说, reduce函数应该是一个单一的scalar值. 也就是说是, 一个整数; 一个字符串; 或者一个较小的, 固定大小的包含aggregated值的列表或对象. 它应该永远不会返回多个值或类似的. 如果你"错误"的使用了reduce, CouchDB会给你一个警告:
+通常来说, reduce函数应该是一个单一的标量值. 也就是说是, 一个整数; 一个字符串; 或者一个较小的, 固定大小的包含聚合值的列表或对象. 它应该永远不会返回多个值或类似的. 如果你"错误"的使用了reduce, CouchDB会给你一个警告:
 
 				{"error":"reduce_overflow_error","message":"Reduce output must shrink more rapidly: Current output: ..."}
 
@@ -284,14 +278,12 @@ reduce视图的结果如下所示:
 				{"id":"53f82b1f0ff49a08ac79a9dff41d7860","key":"philosophy","value":null}
 				]}
 
-As promised, these are all the tags, including duplicates. Since each document gets run through the map function in isolation, it cannot know if the same key has been emitted already. At this stage, we need to live with that. To achieve uniqueness, we need a reduce:
 就预料的一样, 这些就是所有的标签了, 包括重复的. 因为每个文档都在map函数里独立的运行, 所以不可能知道之前已经有同样的key产生了. 目前为止, 我们只能做到这样了. 为了达到唯一性, 我们还需要一个reduce函数:
 
 				function(keys, values) {
 					return true;
 				}
 
-This reduce doesn’t do anything, but it allows us to specify a special query parameter when querying the view:
 这个reduce没有做任何事情, 但是它可以在我们查询视图时指定一个特殊的查询参数:
 
 				/dudes/_design/dude-data/_view/tags?group=true
@@ -320,7 +312,6 @@ CouchDB响应:
 					}
 				}
 
-In the reduce function, we return the sum of all values:
 在reduce函数里, 我们返回了所有值的和:
 
 				function(keys, values) {
@@ -339,17 +330,14 @@ In the reduce function, we return the sum of all values:
 				{"key":"philosophy","value":1}
 				]}
 
-### Enforcing Uniqueness ###
+### 强制唯一性 ###
 
-How you would do this in SQL:
 在SQL中是如何做的:
 
 				UNIQUE KEY(column)
 
-Use case: your applications require that a certain value exists only once in a database.
-用途: 应用程序需要找出数据库一个只存在一次的特定值.
+用途: 应用程序需要保证某个特定值在数据库中只存在一次.
 
 这在CouchDB里很简单, 每次文档都必须有一个唯一的_id域. 如果你需要数据库的一个唯一的值, 只要把它们作为文档的_id域, CouchDB就可以为你保证其唯一性的.
 
-虽然还有一种特殊情况: 在分布式的系统里, 你运行了不止一个的CouchDB节点, 它们接受写请求时, CouchDB只能保证在一个点里保证, 或者在CouchDB之外来保证. CouchDB会允许两个相同的ID被写入两个不同的节点里. 在复制时, CouchDB会检测到一个冲突并给相应的文档打上标记.` 
-
+虽然还有一种特殊情况: 在分布式的系统里, 你运行了不止一个的CouchDB节点. 这时候, 当它们接受写请求时, 唯一性只能在一个节点里保证, 或者在CouchDB之外来保证. CouchDB会允许两个相同的ID被写入两个不同的节点里. 在复制时, CouchDB会检测到一个冲突并给相应的文档打上标记.` 

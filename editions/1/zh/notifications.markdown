@@ -126,7 +126,7 @@ CouchDB响应:
 				00:10: {"seq":4,"id":"test4","changes":[{"rev":"1-02c6b758b08360abefc383d74ed5973d"}]}
 				00:15: {"seq":5,"id":"test5","changes":[{"rev":"1-02c6b758b08360abefc383d74ed5973d"}]}
 
-Note that the continuous changes API result doesn’t include a wrapping JSON object with a results member with the individual notification results as array items; it includes only a raw line per notification. Also note that the lines are no longer separated by a comma. Whereas the regular and long polling APIs result is a full valid JSON object when the HTTP request returns, the continuous changes API sends individual rows as valid JSON objects. The difference makes it easier for clients to parse the respective results. The style and heartbeat parameters work as expected with the continuous changes API.
+请注意, 连续变更API结果的JSON对象里, 没有把所有的独立变更通知放入一个数组中, 来作为results域, 它没有results域. 它的每一行只包含了一个通知. 还需要注意的是, 这些行不再是由逗号来进行分隔. 当HTTP请求返回时, 连续变更API只返回独立的一条通知作为JSON对象, 而普通轮询和长轮询API则会返回一个完整的所有通知的JSON对象. 这些不同也使得分别处理它们的结果变的更为简单. style和heartbeat选项在连续变更API也同样适用.
 
 ### 过滤器 ###
 
