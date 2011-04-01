@@ -1,21 +1,20 @@
 ## 安全性 ##
 
-之前我们提到过CouchDB还处于开发之中, 并且在本书发行之后依然可能会有功能被添加进来. 这对于CouchDB的安全机制来讲, 尤其如此.  There is rudimentary support in the currently released versions (0.10.0), but as we’re writing these lines, additions are being discussed.
+之前我们提到过, CouchDB还处于开发之中. 并且在本书发行之后依然可能会有功能被添加进来. 这对于CouchDB的安全机制来讲, 尤其如此.  在目前版本(0.10.0)有着基本的安全性支持, 但在写作本书时, 我们正在讨论是否会加入更多的安全机制.
 
 在本章节中, 我们会探讨CouchDB中几个基本的安全机制: the Admin Party, 基本认证, Cookie认证, 以及OAuth.
 
 ### The Admin Party ###
 
-在刚安装完时, CouchDB允许任何人做出任何请求. 创建一个数据库? 没问题, 搞定. 删除一些文档? 也没问题. CouchDB把这个称为Admin Party. 任何人都有权限我度过他任何事.
+在刚安装完时, CouchDB允许任何人做出任何请求. 创建一个数据库? 没问题, 搞定. 删除一些文档? 也没问题. CouchDB把这个称为Admin Party. 任何人都有权限做任何事.
 
 虽然对于上手CouchDB来说, 这是一种非常简单的方法, 但是很明显的, 把这种默认的配置放在网络上是十分冒险的. 任何一个恶意的客户端都可以连接上来并且删除数据库.
 
-有一点让人安心的是: 默认的, CouchDB只会监听你的loopback网络(127.0.0.1或者localhost), 因此只有你自己能够发送请求给CouchDB. 但是当你把CouchDB放到公众网络上时(把它设置成为绑定你机器的公网IP地点), 会想要限制访问以防有些坏人会搞些破坏.
+有一点让人安心的是: 默认的, CouchDB只会监听你的本地回路网络(127.0.0.1或者localhost), 因此只有你自己能够发送请求给CouchDB. 但是当你把CouchDB放到公众网络上时(把它设置成为绑定你机器的公网IP地点), 会想要限制访问以防有些坏人会搞些破坏.
 
-In our previous discussions, w dropped some keywords about how things without the admin party work. First, there’s admin itself, which implies some sort of super user. Then there are privileges. Let’s explore these terms a little more.
-BAD TRANSLATED!!!!在之前的讨论中, 我们跳过了几个在没有admin party时CouchDB是怎么做的关键词. 首先, 是admin这个词本身, 它暗示了某类超级用户. 然后是
+在之前的讨论中, 我们忽略了在admin party模式之外应该怎么做的几个关键词. 首先, 是admin这个词本身, 它暗指了某类超级用户, 此外还有权限这个词. 让我们来更详细的探讨下这些术语. 
 
-CouchDB有管理员用户(比如, 类似windows中的administrator, 超级用户, 或者root)的概念, 管理员帐号管理做任何事情. 默认的, 所有人都是管理员. 如果你不喜欢这样, 你可以创建特定的管理员用户, 设置一个用户名和密码作为认证.
+CouchDB有管理员用户(比如, 类似windows中的administrator, 超级用户, 或者root)的概念, 管理员帐号可以做任何事情. 默认的, 所有人都是管理员. 如果你不喜欢这样, 你可以创建特定的管理员用户, 设置一个用户名和密码作为认证.
 
 CouchDB还定义了一个请求集合, 这些请求只有管理员用户才能执行. 如果你定义了一个或者更多个的管理员用户, CouchDB会对一些特定的请求要求认证:
 
@@ -43,7 +42,7 @@ CouchDB还定义了一个请求集合, 这些请求只有管理员用户才能�
 				curl -X PUT $HOST/_config/admins/anna -d '"secret"'
 				""
 
-As per the _config API’s behavior, we’re getting the previous value for the config item we just wrote. Since our admin user didn’t exist, we get an empty string.
+对于每一个_config API请求, 我们都会得到这项配置之前所拥有的值. 因为我们的管理员用户还不存在, 所以得到一个空字符串.
 
 此时如果我查看一下CouchDB的日志文件, 就会发现下面的两行:
 
@@ -55,7 +54,7 @@ As per the _config API’s behavior, we’re getting the previous value for the 
 
 #### 经过哈希处理的密码 ####
 
-看过明文的密码让人很害怕, 是吧? 别担心; 正常情况下, 日志等级不会设置为debug, 明文的密码不会出现在任何地方. 它会马上就进行哈希处理. 处理后就是那串又大, 又丑, 又长的以-hashed-开头的字符吕. 那么它是如何进行处理的呢?
+看到明文的密码让人很害怕, 是吧? 别担心; 正常情况下, 日志等级不会设置为debug, 明文的密码不会出现在任何地方. 它会马上就进行哈希处理. 处理后就是那串又大, 又丑, 又长的以-hashed-开头的字符串. 那么它是如何进行处理的呢?
 
 1. 创建一个新的128位的UUID. 这是我们的salt.
 2. 创建一个明文密码和salt组合的sha1哈希(sha1(password + salt)).
@@ -99,19 +98,17 @@ As per the _config API’s behavior, we’re getting the previous value for the 
 					}
 				}
 
-这个userCtx到底是什么? 它是一个包含了当前请求的认证数据的对象. 让我们来看看里面有什么. We’ll show you a simple trick how to introspect what’s going on in all the JavaScript you are writing.
+这个userCtx到底是什么? 它是一个包含了当前请求的认证数据的对象. 让我们来看看里面有什么. 我们来展示一个小技巧, 如何在写JavaScript时, 来查看一个具体对象.
  
 				> curl -X PUT $HOST/somedatabase/_design/log -d '{"validate_doc_update":"function(newDoc, oldDoc, userCtx) { log(userCtx); }"}'
 				{"ok":true,"id":"_design/log","rev":"1-498bd568e17e93d247ca48439a368718"}
 
-Let’s show the validate_doc_update function:
 来看看validate_doc_update函数:
 
 				function(newDoc, oldDoc, userCtx) {
 					log(userCtx);
 				}
 
-This gets called for every future document update and does nothing but print a log entry into CouchDB’s log file. If we now create a new document:
 这个函数在以后每次文件更新时都会被调用, 它不做任何事情, 但是会在CouchDB的日志文件中进行记录. 如果我们现在创建一个新文档:
 
 				> curl -X POST $HOST/somedatabase/ -d '{"a":1}'
@@ -137,9 +134,9 @@ This gets called for every future document update and does nothing but print a l
 
 基本认证使用了明文的密码, 这很方便, 但是如果没有另外的措施, 这并不是很安全. 此外, 用户体验也很糟糕. 如果你使用基本认证来认证管理员, 应用程序的用户就需要使用一个丑陋的, 浏览器对话框, 会让人觉得很不专业.
 
-会了消除这些顾虑, CouchDB支持cookie认证. 使用cookie认证, 你的应用就不必再包含丑陋的浏览器自带的对话框了. 你可以使用正常的HTML表单来向CouchDB提交登录请求. 收到请求后, CouchDB会产生一个token, 客户端在下次发送请求至CouchDB时还可以使用. 当在接下来的请求过来时, CouchDB会根据这个token来进行用户认证, 而不需要再次验证密码了. 默认, 一个token的有效时间是10分钟.
+会了消除这些顾虑, CouchDB支持cookie认证. 使用cookie认证, 你的应用就不必再包含丑陋的浏览器自带的对话框了. 你可以使用正常的HTML表单来向CouchDB提交登录请求. 收到请求后, CouchDB会产生一个标记(token), 客户端在下次发送请求至CouchDB时还可以使用. 当在接下来的请求过来时, CouchDB会根据这个标记来进行用户认证, 而不需要再次验证密码了. 默认, 一个标记的有效时间是10分钟.
 
-要想取得token并首先认证用户, 用户名和密码必须先发送至_session API.  The API is smart enough to decode HTML form submissions, so you don’t have to resort to any smarts in your application.
+要想取得标记并首先认证用户, 用户名和密码必须先发送至_session API. 这个API很聪明, 能够自己从表单提交中解码HTML, 所以你不需要在应用程序中做任何处理.
 
 如果你并没有使用HTML表单来登录, 你需要发送一个HTTP请求, 这个请求像是一个HTML表单产生的. 幸运的是, 这非常简单:
 
@@ -155,26 +152,25 @@ CouchDB响应, 下面就是一些细节:
 				<
 				{"ok":true}
 
-一个200的返回码告诉我们一切正常, 一个Set-Cookie头包括一个token让我们可以在下次请求中使用, 标准的JSON响应则再次告诉我们请求成功了.
+一个200的返回码告诉我们一切正常, 一个Set-Cookie头包括一个标记让我们可以在下次请求中使用, 标准的JSON响应则再次告诉我们请求成功了.
 
-现在我们就可以使用这个token以同一个用户来作另一次请求, 而不必再发送用户名和密码了:
+现在我们就可以使用这个标记以同一个用户来作另一次请求, 而不必再发送用户名和密码了:
 
 				> curl -vX PUT $HOST/mydatabase --cookie AuthSession=YW5uYTo0QUIzOTdFQjrC4ipN-D-53hw1sJepVzcVxnriEw -H "X-CouchDB-WWW-Authenticate: Cookie" -H "Content-Type: application/x-www-form-urlencoded"
 				{"ok":true}
 
-默认情况下, 你可以不断的使用这个token10分钟. 10分钟以后, 你需要重新认证用户. token的存活时间可以在配置的couch_httpd_auth部分的timeout(以秒计算)里设置.
+默认情况下, 你可以不断的使用这个标记分钟. 10分钟以后, 你需要重新认证用户. 标记的存活时间可以在配置的couch_httpd_auth部分的timeout(以秒计算)里设置.
 
-Please note that for cookie authentication to work, you need to enable the cookie_authentication_handler in your local.ini:
+请注意, 要使用cookie认证, 你需要在local.ini里启用cookie_authentication_handler.
 
 [httpd]
 authentication_handlers = {couch_httpd_auth, cookie_authentication_handler}, {couch_httpd_oauth, oauth_authentication_handler}, {couch_httpd_auth, default_authentication_handler}
-In addition, you need to define a server secret:
+
+另外, 你还需要定义一个服务器密码:
 
 [couch_httpd_auth]
 secret = yours3cr37pr4s3
 
 ### 网络服务器安全性 ###
 
-CouchDB是一个网络服务器, 一些如何进行安全设置的最佳实践超出了本书要讨论的范畴. 附录D, 从源代码安装包含了一些最佳实践. Make sure to understand the implications.
-
-
+CouchDB是一个网络服务器, 一些如何进行安全设置的最佳实践超出了本书要讨论的范畴. 附录D, 从源代码安装包含了一些最佳实践. 请确保自己了解其中的含义.
