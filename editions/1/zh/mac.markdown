@@ -6,7 +6,7 @@
 
 ### Homebrew ###
 
-Homebrew是最近出现的一个Mac OS X上的软件管理工具. 它的理念是零配置, 高优化, and a beer theme. 可以从 http://github.com/mxcl/homebrew 得到Homebrew. 安装很容易. 安装设置完成后, 运行:
+Homebrew是最近出现的一个Mac OS X上的软件管理工具. 它的理念是零配置, 高优化, 并且它是开源的. 可以从 http://github.com/mxcl/homebrew 得到Homebrew. 安装很容易. 安装设置完成后, 运行:
 
 				brew install couchdb
 
@@ -14,7 +14,6 @@ Homebrew是最近出现的一个Mac OS X上的软件管理工具. 它的理念�
 
 				couchdb
 
-to see all the startup options available to you, run:
 要想看到所有可用的启动选项, 可以运行:
 
 				couchdb -h
@@ -35,7 +34,6 @@ MacPorts被认为是Mac OS X上实际的包管理工具. 虽然并非操作系�
 
 				sudo port install couchdb
 
-This command will install all of the necessary dependencies for CouchDB. If a dependency was already installed, MacPorts will not take care of upgrading the dependency to the newest version. To make sure that all of the dependencies are up-to-date, you should also run:
 这条命令会安装所有CouchDB所需要的依赖包. 如果一个依赖包已经有安装了, MacPorts不会去升级它到最新的版本. 要确保所有的依赖包都是最新的版本, 你还需要运行:
 
 				sudo port upgrade couchdb

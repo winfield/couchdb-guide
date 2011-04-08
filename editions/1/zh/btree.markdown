@@ -1,8 +1,37 @@
 ## B-tree的威力 ##
 
-CouchDB uses a data structure called a B-tree to index its documents and views. We’ll look at B-trees enough to understand the types of queries they support and how they are a good fit for CouchDB.
-CouchDB使用了一个叫B-tree的数据结构来索引文档和视图. 
-This is our first foray into CouchDB internals. To use CouchDB, you don’t need to know what’s going on under the hood, but if you understand how CouchDB performs its magic, you’ll be able to pull tricks of your own. Additionally, if you understand the consequences of the ways you are using CouchDB, you will end up with smarter systems.
+CouchDB使用了一个叫B-tree的数据结构来索引文档和视图. 这个附录里, 我们将深入B-tree, 理解它支持哪些类型的查询, 以及为什么它适合用于CouchDB.
 
-If you weren’t looking closely, CouchDB would appear to be a B-tree manager with an HTTP interface.
+这是我们第一次深入CouchDB的内部实现. 要使用CouchDB, 你不需要知道它在底层是如何工作的, 但是如果你理解了CouchDB是如何施放它的魔法的, 那么你将能够使用创造出你自己的魔法. 另外, 如果你知道了CouchDB的各种使用方法所产生的结果, 那么就能更好的实现一个系统. 
 
+如果你不仔细看的话, CouchDB就像是一个带有HTTP接口的B-tree管理器.
+
+实际上, CouchDB使用的是B+ tree, 它是一个稍有不同的B-tree变种, 为了提高速度它牺牲了一点(磁盘)空间. 当我们说B-tree的时候, 其实我们所指的就是CouchDB的B+ tree.
+
+B-tree是一种极佳的用于巨大量数存储和读取的数据结构. 当B-tree里保存了上万亿条数据时, 事情就变得有趣了. B-tree通常是一个薄而宽的数据结构. 另外的树可能会长的非常高, 一个典型的B-tree却只会有一个个位数的高度, 即使里面有百万条的记录. 这对于CouchDB来讲尤其有趣, 在CouchDB里树的叶子保存在一个低速的介质上, 比如磁盘. 访问树的任何部分用于读写都只要访问几个少量的节点, 也就是几个少量的磁头寻道(这也是为什么磁盘慢的原因). 而又因为操作系统通常会缓存树的较上层节点, 只有那些处于最下几层的节点才需要进行查找.
+
+从实际应用来看, 即使是在一个极其巨大的数据集里, B-tree也能保证小于10ms的读取时间.
+
+—Rudolf Bayer博士, B-tree的创造者
+
+CouchDB的B-tree实现和原始实现略有不同. 它维持了原有的所有那些重要的特性, 还增加了多版本并发控制(MVCC)以及append-only的设计. B-tree不仅用于保存主数据库文件, 还会用来保存视图索引. 一个数据库就是一个B-tree, 一个视图索引也是一个B-tree.
+
+MVCC可以实现无锁的并发读写. 写是串行化的, 一个数据库在某一个时间点只会允许一个写入操作. 写操作不会堵塞读操作, 且任何时候都可以有任何数量的读操作. 每个读操作都会被保证有一致的数据库状态. 这是如何实现的, 就是CouchDB存储模型的核心了.
+
+简单的回答是, 因为CouchDB使用了append-only的文件, 所以每次文件更新, B-tree的根节点必须被重写. 然而, 文件老的部分永远不会改变, 所以对于每个老的B-tree根节点来说, 如果你碰巧指向了它, 那么它还是会指到数据库的一个一致状态的快照上.
+
+在本书的较前面, 我们解释了, MVCC系统是如何使用文档的_rev值来保证, 只有一个人可以改变一个文档的版本. B-tree用来找到已经存在的_rev值, 从而进行比较. 当一个写入被接受时, B-tree就把它认为是一个经授权后的版本.
+
+因为老版本的文档在新版本保存后并没有被覆盖或者删除, 那些对某个特定版本的请求不会关心新版本此时是否在被改写. 对于一个经常改变的文档, 可能会有读操作在同一时刻分别读取了三个不同版本的文档. 在某个特定客户端开始读取的时候, 这几个版本都是最新的版本, 但事实上新版本已经被改写了. 从新版本被提交的那一刻起, 新的读操作将会读取这个最新的版本, 而那些老的读操作仍然读取的是老的版本.
+
+在一个B-tree里, 数据只被保存在叶子节点中. CouchDB B-tree只会把数据附加到磁盘上的数据库文件, 并且只会在其末尾进行附加. 新添加了一个文档? 会附加在文件的末尾. 删除了一个文档? 会在文件的末尾加以记录. 这样做的结果是, 我们得到了一个健壮的数据库文件. 计算机会因为很多原因而出错, 比如电源中断或者硬件故障. 因为CouchDB不改写任何已经存在的数据, 所以就不会损坏任何已经写入并且提交到磁盘的数据. 图1, "扁平的B-tree和append-only模式".
+
+提交是更新数据库文件, 从而可以反映出变更的一个过程. 它在文件的尾部完成, 文件尾是数据库文件的最后4k. 文件尾的大小是2k, 会连续写入两次. 第一次, CouchDB把所有的更新都附加到文件, 然后在第一个文件尾里记录下文件的新长度. 接着, 它会强制冲刷(force-flush)所有的变更到磁盘. 再接下来, 它把第一个文件尾拷贝至第二个2k的文件尾, 再次进行强制冲刷.
+
+![扁平的B-tree和append-only模式](btree/01.png)
+
+图1. 扁平的B-tree和append-onl模式
+
+如果在这一过程中, 有什么问题发生了--比如说, 电源中断了, 所以CouchDB重启了--数据库文件仍处于一个一致的状态, 而不需要进行检查. CouchDB会从数据库文件尾部倒着读取. 当它找到那一对文件尾后, 会作一些检查: 如果第一个2k被损坏了(文件尾会包含一个校验和), CouchDB会把第二个文件尾拷贝给它, 那么一切就又正常了. 如果第二个文件尾损坏了, CouchDB就把第一个2k拷贝过去, 那也没什么问题. 只有当两个文件尾都被冲刷到磁盘, CouchDB才会认为这个写操作成功了. 数据永远不会丢失, 并且磁盘上的数据永远不会损坏. 这种设计是CouchDB没有一个关闭开关的原因. 你只要直接终止程序, 就完事了.
+
+大体上, 关于B-tree还能讲很多的东西, 比如SSD会不会改变运行时的行为, 是如何改变这一行为的之类问题. Wikipedia的关于B-tree的文章的进一步了解的一个很好的开始. Scholarpedia上则有B-tree的创造者, Rudolf Bayer博士的论文.

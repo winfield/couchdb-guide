@@ -20,7 +20,6 @@
 
 ### Gentoo Linux ###
 
-Enable the development ebuild of CouchDB by running:
 通过下面的命令启用CouchDB的development ebuild:
 
 				sudo echo dev-db/couchdb >> /etc/portage/package.keywords
@@ -32,8 +31,6 @@ Enable the development ebuild of CouchDB by running:
 编译安装CouchDB ebuild:
 
 				sudo emerge couchdb
-
-When this completes, you should have a copy of CouchDB running on your machine.
 
 当这个命令完成后, 你应该就有一个可以运行的CouchDB了.
 
